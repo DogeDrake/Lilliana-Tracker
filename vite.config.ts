@@ -3,5 +3,5 @@ import vue from "@vitejs/plugin-vue";
 
 export default defineConfig({
   plugins: [vue()],
-  base: "/magic-tracker/",
+  base: "/Llliana-Tracker/", // <--- OJO: Debe coincidir exactamente con el nombre del repo
 });
