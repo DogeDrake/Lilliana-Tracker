@@ -107,9 +107,11 @@ onMounted(cargarDatos);
           <h1>{{ jugadorActivo === 'jugador1' ? 'Presi77' : 'Caramanzana' }}</h1>
           <p class="count-badge">{{ cargando ? 'Consultando...' : partidasFiltradas.length + ' duelos' }}</p>
         </div>
-        <button @click="cargarDatos" class="btn-refresh" :disabled="cargando">
-          <span :class="{ spinning: cargando }">🔄</span>
-        </button>
+        <div class="btn-refresh-wrapper">
+          <button @click="cargarDatos" class="btn-refresh" :disabled="cargando">
+            <span :class="{ spinning: cargando }">🔄</span>
+          </button>
+        </div>
       </header>
 
       <section class="card-form">
@@ -210,6 +212,21 @@ tbody tr:hover {
   overflow: hidden;
 }
 
+.header-info {
+  flex: 1;
+  min-width: 0;
+  /* Permite que el texto se acorte si es necesario */
+}
+
+.header-info h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  /* Un poco más pequeño en móvil para dar aire */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --- MANTENEMOS TU ESTRUCTURA ANTERIOR --- */
 .main-background {
   min-height: 100vh;
@@ -223,9 +240,11 @@ tbody tr:hover {
 
 .app-container {
   width: 100%;
-  max-width: 1250px;
-  margin: 0 auto;
-  padding-top: 2;
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  /* Bloqueo total de scroll lateral */
 }
 
 .player-selector {
@@ -255,7 +274,13 @@ tbody tr:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 1rem;
+  /* Usamos padding controlado para que nada toque el borde físico */
+  padding: 1rem 1.2rem;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  overflow: hidden;
+  /* Evita que el botón empuje hacia afuera */
 }
 
 .card-form {
@@ -292,8 +317,8 @@ input {
 
 table {
   width: 100%;
-  border-collapse: collapse;
   table-layout: fixed;
+  /* Esto es vital */
 }
 
 td {
@@ -386,6 +411,19 @@ td {
   .loss-text span:last-child::after {
     content: "errota";
   }
+
+    .glass-header {
+      padding: 2rem 5%;
+    }
+  
+    .header-info h1 {
+      font-size: 2.5rem;
+    }
+  
+    .btn-refresh {
+      width: 50px;
+      height: 50px;
+    }
 }
 
 .spinning {
@@ -401,5 +439,30 @@ td {
   to {
     transform: rotate(360deg);
   }
+}
+
+.btn-refresh-wrapper {
+  flex-shrink: 0;
+  /* Evita que el contenedor del botón se estire */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.btn-refresh {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 44px;
+  /* Tamaño táctil ideal */
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* Elimina el recuadro feo al tocar en móvil */
+  margin-left: 10px;
+  /* Separación mínima del texto */
 }
 </style>
