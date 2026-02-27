@@ -2,11 +2,13 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main] # O 'master' según tu rama principal
+    branches: [main]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: github-pages
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,9 +18,10 @@ jobs:
           npm install
           npm run build
         env:
-          env:
-          VITE_SHEET_URL_Alvaro: ${{ secrets.VITE_SHEET_URL_Alvaro }}
-          VITE_SHEET_URL_Hector: ${{ secrets.VITE_SHEET_URL_Hector }}
+          # Mapeo de secretos: 'Lado Izquierdo' es como lo llamas en Vue,
+          # 'Lado Derecho' es como lo llamaste en la captura de GitHub.
+          VITE_SHEET_URL_Alvaro: ${{ secrets.VITE_SHEET_URL_ALVARO }}
+          VITE_SHEET_URL_Hector: ${{ secrets.VITE_SHEET_URL_HECTOR }}
 
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
