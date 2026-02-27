@@ -95,16 +95,16 @@ onMounted(cargarDatos);
     <div class="app-container">
       <nav class="player-selector">
         <button :class="{ active: jugadorActivo === 'jugador1' }" @click="jugadorActivo = 'jugador1'">
-          <span class="icon">🦶</span> <span class="btn-text">Alvaro</span>
+          <span class="icon">🦶</span> <span class="btn-text">Presi77</span>
         </button>
         <button :class="{ active: jugadorActivo === 'jugador2' }" @click="jugadorActivo = 'jugador2'">
-          <span class="icon">🌳</span> <span class="btn-text">Hector</span>
+          <span class="icon">🌳</span> <span class="btn-text">Caramanzana</span>
         </button>
       </nav>
 
       <header class="glass-header">
         <div class="header-info">
-          <h1>{{ jugadorActivo === 'jugador1' ? 'Alvaro' : 'Hector' }}</h1>
+          <h1>{{ jugadorActivo === 'jugador1' ? 'Presi77' : 'Caramanzana' }}</h1>
           <p class="count-badge">{{ partidasFiltradas.length }} duelos registrados</p>
         </div>
         <button @click="cargarDatos" class="btn-refresh" :disabled="cargando">
@@ -136,25 +136,25 @@ onMounted(cargarDatos);
         <table v-else-if="partidasFiltradas.length > 0">
           <thead>
             <tr>
-              <th>Partida</th>
+              <th class="col-min">#</th>
               <th>Mazo</th>
               <th>Resultado</th>
-              <th>WR</th>
-              <th class="hide-mobile">Global</th>
+              <th class="col-pct">WR</th>
+              <th class="hide-mobile col-pct">Global</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(p, index) in partidasFiltradas" :key="index">
-              <td class="mono">#{{ p.game || (partidasFiltradas.length - index) }}</td>
+              <td class="mono col-min">#{{ p.game || (partidasFiltradas.length - index) }}</td>
               <td class="bold deck-column">{{ p.deck || p.Deck }}</td>
               <td>
                 <div class="status-cell" :class="(p.win == 1) ? 'win-text' : 'loss-text'">
                   <span :class="['dot', (p.win == 1) ? 'win' : 'loss']"></span>
-                  {{ (p.win == 1) ? 'Victoria' : 'Derrota' }}
+                  <span class="status-label">{{ (p.win == 1) ? 'V' : 'D' }}</span>
                 </div>
               </td>
-              <td class="mono accent">{{ formatPct(p.acc_wr || p.Acc_wr) }}</td>
-              <td class="mono hide-mobile">{{ formatPct(p.wr || p.Wr) }}</td>
+              <td class="mono accent col-pct">{{ formatPct(p.acc_wr || p.Acc_wr) }}</td>
+              <td class="mono hide-mobile col-pct">{{ formatPct(p.wr || p.Wr) }}</td>
             </tr>
           </tbody>
         </table>
@@ -163,7 +163,173 @@ onMounted(cargarDatos);
   </div>
 </template>
 
-<style scoped>
+<style>
+/* Reset global para eliminar rebordes negros */
+body,
+html {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-color: #0f172a;
+  /* Color base para evitar destellos blancos */
+}
+
+/* 1. BASE Y FONDO */
+.main-background {
+  min-height: 100vh;
+  width: 100vw;
+  /* Ancho completo real */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #f8fafc;
+  background: linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
+    url('./assets/Backgound.jpg') center/cover no-repeat fixed;
+  padding: 0 0 4rem 0;
+  /* Eliminado padding superior */
+}
+
+.app-container {
+  width: 100%;
+  max-width: 1250px;
+  margin: 0 auto;
+  padding-top: 1rem;
+  box-sizing: border-box;
+}
+
+/* 2. TABLA ADAPTATIVA (SIN SCROLL HORIZONTAL) */
+.table-wrapper {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 0;
+  /* En móvil queda mejor sin bordes curvos a los lados */
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  /* Fuerza a la tabla a no estirarse */
+}
+
+th,
+td {
+  padding: 1rem 0.5rem;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Control de anchos de columnas */
+.col-min {
+  width: 45px;
+}
+
+.col-pct {
+  width: 65px;
+  text-align: right;
+}
+
+.deck-column {
+  width: auto;
+}
+
+/* 3. ESTADOS Y BOTONES */
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.dot {
+  height: 8px;
+  width: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot.win {
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+}
+
+.dot.loss {
+  background: #f87171;
+  box-shadow: 0 0 8px #f87171;
+}
+
+.win-text {
+  color: #34d399;
+}
+
+.loss-text {
+  color: #f87171;
+}
+
+/* 4. RESPONSIVIDAD EXTREMA */
+@media (min-width: 768px) {
+  .app-container {
+    width: 94%;
+  }
+
+  .table-wrapper {
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .status-label::after {
+    content: "ictoria";
+  }
+
+  /* En PC muestra palabra completa */
+  .status-label-loss::after {
+    content: "errota";
+  }
+
+  th,
+  td {
+    padding: 1.2rem 1.5rem;
+  }
+
+  .col-pct {
+    width: 100px;
+  }
+}
+
+@media (max-width: 767px) {
+  header h1 {
+    font-size: 1.8rem;
+    margin-top: 0.5rem;
+  }
+
+  .player-selector {
+    margin: 0 10px 1.5rem 10px;
+  }
+
+  .card-form {
+    margin: 0 10px 1.5rem 10px;
+    border-radius: 15px;
+  }
+
+  /* Ajuste de texto para que no rompa la tabla */
+  .deck-column {
+    font-size: 0.85rem;
+    max-width: 120px;
+  }
+
+  .mono {
+    font-size: 0.8rem;
+  }
+
+  /* Solo mostramos 'V' o 'D' en móvil */
+  .status-label {
+    font-size: 0.9rem;
+  }
+}
+
 /* 1. BASE Y FONDO */
 .main-background {
   min-height: 100vh;
