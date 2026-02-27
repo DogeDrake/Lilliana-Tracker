@@ -153,7 +153,7 @@ onMounted(cargarDatos);
           <tbody>
             <tr v-for="(p, index) in partidasFiltradas" :key="index">
               <td class="mono col-id">#{{ p.game || (partidasFiltradas.length - index) }}</td>
-              <td class="bold deck-name">{{ p.deck || p.Deck }}</td>
+              <td class="bold deck-name truncate">{{ p.deck || p.Deck }}</td>
               <td class="col-res">
                 <div class="status-cell">
                   <span :class="['res-indicator', (p.win == 1) ? 'win-style' : 'loss-style']">
@@ -258,6 +258,15 @@ onMounted(cargarDatos);
   display: grid;
   grid-template-columns: 1fr;
   gap: 1rem;
+}
+
+.truncate {
+  white-space: nowrap;
+  /* Evita que salte a la segunda línea */
+  overflow: hidden;
+  /* Esconde lo que sobra */
+  text-overflow: ellipsis;
+  /* Añade los "..." */
 }
 
 input {
@@ -396,20 +405,6 @@ td {
   .header-info h1 {
     font-size: 2.2rem;
   }
-
-  /* Ajuste de columnas en PC */
-  .col-id {
-    width: 60px;
-  }
-
-  .col-res {
-    width: 100px;
-  }
-
-  .col-pct {
-    width: 90px;
-  }
-
   .res-indicator {
     font-size: 0.85rem;
   }
@@ -421,6 +416,30 @@ td {
   .loss-style::after {
     content: 'ERROTA';
   }
+
+    /* En escritorio quitamos el truncado para que se vea todo */
+    .truncate {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
+  
+    .col-id {
+      width: 70px;
+    }
+  
+    .col-res {
+      width: 110px;
+    }
+  
+    .col-pct {
+      width: 90px;
+    }
+  
+    /* Aquí sí mostramos la columna global */
+    .hide-mobile.col-pct {
+      display: table-cell;
+    }
 }
 
 /* UTILIDADES Y ANIMACIONES */
