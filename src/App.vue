@@ -233,15 +233,6 @@ onMounted(cargarDatos);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
 }
 
-/* 3. ENCABEZADO */
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2.5rem;
-  padding: 0 10px;
-}
-
 header h1 {
   margin: 0;
   font-size: 2.5rem;
@@ -249,18 +240,6 @@ header h1 {
   background: linear-gradient(to right, #ffffff, #60a5fa);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-
-/* 4. FORMULARIO REFORMADO (PARA QUE NO ESTÉ PEGADO) */
-.card-form {
-  background: rgba(30, 41, 59, 0.5);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 2.5rem;
-  /* Más aire interno */
-  border-radius: 30px;
-  margin-bottom: 3rem;
-  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
 }
 
 .card-form h2 {
@@ -292,18 +271,6 @@ header h1 {
   font-weight: 800;
   color: #94a3b8;
   padding-left: 5px;
-}
-
-input {
-  width: 100%;
-  padding: 18px 22px;
-  /* Inputs más grandes */
-  background: rgba(15, 23, 42, 0.8);
-  border: 2px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  color: white;
-  font-size: 1.1rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 input:focus {
@@ -419,6 +386,87 @@ tr:hover td {
     flex-direction: column;
     gap: 2rem;
     text-align: center;
+  }
+}
+
+/* --- AJUSTES PARA EL FORMULARIO --- */
+.card-form {
+  background: rgba(30, 41, 59, 0.5);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2.5rem;
+  border-radius: 30px;
+  margin-bottom: 3rem;
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+
+  /* CRÍTICO: Asegura que el padding no estire el cuadro */
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+input {
+  width: 100%;
+  /* Usamos box-sizing para que el padding 22px se quede DENTRO del 100% */
+  box-sizing: border-box;
+  padding: 18px 22px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  color: white;
+  font-size: 1.1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Evita que el zoom automático de iPhone al enfocar rompa el layout */
+  appearance: none;
+}
+
+/* --- RESPONSIVIDAD MEJORADA --- */
+@media (max-width: 850px) {
+  .app-container {
+    width: 92%;
+    /* Un poco más de margen en los bordes del móvil */
+  }
+
+  .card-form {
+    padding: 1.5rem;
+    /* Reducimos padding interno para ganar espacio */
+  }
+
+  .form-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    /* Menos espacio entre inputs en móvil */
+  }
+
+  header h1 {
+    font-size: 1.8rem;
+    /* Título un poco más pequeño para que no rompa */
+  }
+
+  /* Ajustamos la tabla para que se pueda deslizar lateralmente si es muy ancha */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  td,
+  th {
+    padding: 15px 12px;
+    /* Reducimos espacio en celdas para móvil */
+    font-size: 0.9rem;
+  }
+}
+
+/* Fix extra para móviles muy pequeños (iPhone SE, etc) */
+@media (max-width: 400px) {
+  .player-selector {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-send {
+    padding: 0 20px;
+    height: 55px;
   }
 }
 </style>
