@@ -171,63 +171,7 @@ onMounted(cargarDatos);
 </template>
 
 <style scoped>
-/* --- ESTILOS DE RESALTADO DE TABLA --- */
-
-thead tr {
-  /* Fondo más oscuro y sólido para la cabecera */
-  background: rgba(0, 0, 0, 0.4);
-  /* Sombra inferior para dar profundidad */
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-th {
-  padding: 12px 10px;
-  color: #94a3b8;
-  font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  border-bottom: 2px solid #3b82f6;
-  text-align: left;
-}
-
-/* Efecto cebra suave para las filas de datos */
-tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-tbody tr:hover {
-  background: rgba(59, 130, 246, 0.05);
-  /* Resaltado al pasar el ratón o pulsar */
-}
-
-.deck-name {
-  color: #ffffff;
-  font-weight: 700;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
-}
-
-/* Reajuste de la tabla para que no tenga bordes redondeados en la cabecera interna */
-.table-wrapper {
-  overflow: hidden;
-}
-
-.header-info {
-  flex: 1;
-  min-width: 0;
-  /* Permite que el texto se acorte si es necesario */
-}
-
-.header-info h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  /* Un poco más pequeño en móvil para dar aire */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* --- MANTENEMOS TU ESTRUCTURA ANTERIOR --- */
+/* 1. ESTRUCTURA BASE Y RESET DE DESBORDAMIENTO */
 .main-background {
   min-height: 100vh;
   width: 100vw;
@@ -236,22 +180,27 @@ tbody tr:hover {
   background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)),
     url('./assets/Backgound.jpg') center/cover no-repeat fixed;
   padding-bottom: 2rem;
+  padding-top: 1rem;
+  overflow-x: hidden;
 }
 
 .app-container {
   width: 100%;
-  max-width: 100vw;
-  margin: 0;
+  max-width: 1400px;
+  /* Evita que se estire infinito en monitores gigantes */
+  margin: 0 auto;
   padding: 0;
-  overflow-x: hidden;
-  /* Bloqueo total de scroll lateral */
+  display: flex;
+  flex-direction: column;
 }
 
+/* 2. CABECERA Y SELECTOR */
 .player-selector {
   display: flex;
   background: rgba(255, 255, 255, 0.05);
   padding: 4px;
   backdrop-filter: blur(10px);
+  margin-bottom: 0.5rem;
 }
 
 .player-selector button {
@@ -262,6 +211,7 @@ tbody tr:hover {
   color: #64748b;
   font-weight: 800;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .player-selector button.active {
@@ -274,20 +224,49 @@ tbody tr:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  /* Usamos padding controlado para que nada toque el borde físico */
   padding: 1rem 1.2rem;
-  width: 100%;
-  max-width: 100vw;
   box-sizing: border-box;
-  overflow: hidden;
-  /* Evita que el botón empuje hacia afuera */
 }
 
+.header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.header-info h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-refresh-wrapper {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.btn-refresh {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+/* 3. FORMULARIO */
 .card-form {
   background: rgba(30, 41, 59, 0.5);
   padding: 1.2rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1rem;
 }
 
 .form-group {
@@ -313,32 +292,78 @@ input {
   border: none;
   color: white;
   font-weight: 900;
+  cursor: pointer;
+}
+
+/* 4. TABLA (MÓVIL PRIMERO) */
+.table-wrapper {
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.4);
+  margin: 0 0.5rem;
+  border-radius: 8px;
 }
 
 table {
   width: 100%;
-  table-layout: fixed;
-  /* Esto es vital */
+  border-collapse: collapse;
+  table-layout: auto;
+  /* Permite ajuste fluido en móvil */
+}
+
+thead tr {
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+th {
+  padding: 12px 8px;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 2px solid #3b82f6;
+  text-align: left;
 }
 
 td {
-  padding: 14px 10px;
+  padding: 12px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  vertical-align: middle;
 }
 
+/* Ajuste de anchos para priorizar el Nombre del Mazo */
 .col-id {
-  width: 40px;
+  width: 45px;
   color: #64748b;
 }
 
 .col-res {
-  width: 50px;
+  width: 40px;
 }
 
 .col-pct {
-  width: 65px;
+  width: 60px;
   text-align: right;
+}
+
+.deck-name {
+  color: #ffffff;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  white-space: normal;
+  /* Permite dos líneas si es necesario */
+  word-break: break-word;
+}
+
+/* Estilos de estado */
+tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05);
 }
 
 .status-cell {
@@ -382,9 +407,21 @@ td {
   font-weight: bold;
 }
 
+/* 5. DISEÑO DE ESCRITORIO (MEDIA QUERIES) */
 @media (min-width: 768px) {
   .app-container {
-    width: 94%;
+    width: 90%;
+    margin: 0 auto;
+  }
+
+  .card-form {
+    border-radius: 12px;
+    margin: 0 0 1.5rem 0;
+  }
+
+  .table-wrapper {
+    margin: 0;
+    border-radius: 12px;
   }
 
   .form-group {
@@ -392,16 +429,34 @@ td {
     align-items: end;
   }
 
+  .glass-header {
+    padding: 2rem 0;
+  }
+
+  .header-info h1 {
+    font-size: 2.5rem;
+  }
+
+  .btn-refresh {
+    width: 50px;
+    height: 50px;
+  }
+
+  /* En PC volvemos a un control más rígido de anchos */
+  table {
+    table-layout: fixed;
+  }
+
   .col-id {
-    width: 70px;
+    width: 80px;
   }
 
   .col-res {
-    width: 120px;
+    width: 130px;
   }
 
   .col-pct {
-    width: 100px;
+    width: 110px;
   }
 
   .status-cell span:last-child::after {
@@ -411,21 +466,9 @@ td {
   .loss-text span:last-child::after {
     content: "errota";
   }
-
-    .glass-header {
-      padding: 2rem 5%;
-    }
-  
-    .header-info h1 {
-      font-size: 2.5rem;
-    }
-  
-    .btn-refresh {
-      width: 50px;
-      height: 50px;
-    }
 }
 
+/* Animaciones */
 .spinning {
   animation: spin 1s linear infinite;
   display: inline-block;
@@ -441,28 +484,13 @@ td {
   }
 }
 
-.btn-refresh-wrapper {
-  flex-shrink: 0;
-  /* Evita que el contenedor del botón se estire */
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s;
 }
 
-.btn-refresh {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  width: 44px;
-  /* Tamaño táctil ideal */
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  /* Elimina el recuadro feo al tocar en móvil */
-  margin-left: 10px;
-  /* Separación mínima del texto */
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
