@@ -105,7 +105,7 @@ onMounted(cargarDatos);
       <header class="glass-header">
         <div class="header-info">
           <h1>{{ jugadorActivo === 'jugador1' ? 'Presi77' : 'Caramanzana' }}</h1>
-          <p class="count-badge">{{ partidasFiltradas.length }} duelos</p>
+          <p class="count-badge">{{ cargando ? 'Consultando...' : partidasFiltradas.length + ' duelos' }}</p>
         </div>
         <button @click="cargarDatos" class="btn-refresh" :disabled="cargando">
           <span :class="{ spinning: cargando }">🔄</span>
@@ -130,23 +130,28 @@ onMounted(cargarDatos);
 
       <div class="table-wrapper">
         <div v-if="cargando" class="skeleton-container">
-          <div v-for="i in 5" :key="i" class="skeleton-row"></div>
+          <div v-for="i in 6" :key="i" class="skeleton-row">
+            <div class="skeleton-cell col-id"></div>
+            <div class="skeleton-cell col-main"></div>
+            <div class="skeleton-cell col-res"></div>
+            <div class="skeleton-cell col-pct"></div>
+          </div>
         </div>
 
         <table v-else-if="partidasFiltradas.length > 0">
           <thead>
             <tr>
-              <th class="col-id">Partida</th>
-              <th>Mazo</th>
-              <th class="col-res">Resultado</th>
+              <th class="col-id">PARTIDA</th>
+              <th>MAZO</th>
+              <th class="col-res">RESULTADO</th>
               <th class="col-pct">WR</th>
-              <th class="hide-mobile col-pct">Global</th>
+              <th class="hide-mobile col-pct">GLOBAL</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(p, index) in partidasFiltradas" :key="index">
-              <td class="mono col-id">{{ p.game || (partidasFiltradas.length - index) }}</td>
-              <td class="bold deck-column">{{ p.deck || p.Deck }}</td>
+              <td class="mono col-id">#{{ p.game || (partidasFiltradas.length - index) }}</td>
+              <td class="bold deck-name">{{ p.deck || p.Deck }}</td>
               <td class="col-res">
                 <div class="status-cell" :class="(p.win == 1) ? 'win-text' : 'loss-text'">
                   <span :class="['dot', (p.win == 1) ? 'win' : 'loss']"></span>
@@ -163,19 +168,51 @@ onMounted(cargarDatos);
   </div>
 </template>
 
-<style>
-/* Reset crítico: elimina cualquier borde externo */
-body,
-html {
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  background-color: #0f172a;
-}
-</style>
-
 <style scoped>
-/* 1. ESTRUCTURA DE PANTALLA COMPLETA */
+/* --- ESTILOS DE RESALTADO DE TABLA --- */
+
+thead tr {
+  /* Fondo más oscuro y sólido para la cabecera */
+  background: rgba(0, 0, 0, 0.4);
+  /* Sombra inferior para dar profundidad */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+th {
+  padding: 16px 10px;
+  color: #94a3b8;
+  /* Gris azulado suave */
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  /* Texto expandido para estilo técnico */
+  text-transform: uppercase;
+  border-bottom: 2px solid #3b82f6;
+  /* Línea azul brillante bajo el título */
+}
+
+/* Efecto cebra suave para las filas de datos */
+tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05);
+  /* Resaltado al pasar el ratón o pulsar */
+}
+
+.deck-name {
+  color: #ffffff;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+/* Reajuste de la tabla para que no tenga bordes redondeados en la cabecera interna */
+.table-wrapper {
+  overflow: hidden;
+}
+
+/* --- MANTENEMOS TU ESTRUCTURA ANTERIOR --- */
 .main-background {
   min-height: 100vh;
   width: 100vw;
@@ -190,28 +227,23 @@ html {
   width: 100%;
   max-width: 1250px;
   margin: 0 auto;
+  padding-top: 20px;
 }
 
-/* 2. CABECERA Y SELECTOR (SIN MÁRGENES LATERALES EN MÓVIL) */
 .player-selector {
   display: flex;
   background: rgba(255, 255, 255, 0.05);
   padding: 4px;
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .player-selector button {
   flex: 1;
-  padding: 12px;
+  padding: 14px;
   border: none;
   background: transparent;
   color: #64748b;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  font-weight: 800;
   cursor: pointer;
 }
 
@@ -228,17 +260,9 @@ html {
   padding: 1.5rem 1rem;
 }
 
-header h1 {
-  margin: 0;
-  font-size: 1.8rem;
-  font-weight: 900;
-  color: white;
-}
-
-/* 3. FORMULARIO COMPACTO */
 .card-form {
   background: rgba(30, 41, 59, 0.5);
-  padding: 1rem;
+  padding: 1.2rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -252,7 +276,7 @@ header h1 {
 input {
   width: 100%;
   box-sizing: border-box;
-  padding: 12px;
+  padding: 14px;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
@@ -260,7 +284,7 @@ input {
 }
 
 .btn-send {
-  height: 45px;
+  height: 50px;
   background: #10b981;
   border-radius: 8px;
   border: none;
@@ -268,50 +292,32 @@ input {
   font-weight: 900;
 }
 
-/* 4. TABLA DE ANCHO TOTAL (ZERO MARGINS) */
-.table-wrapper {
-  width: 100%;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(10px);
-}
-
 table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  /* Crucial para evitar scroll */
 }
 
-th,
 td {
-  padding: 12px 8px;
-  text-align: left;
+  padding: 14px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
-/* Columnas optimizadas */
 .col-id {
-  width: 35px;
+  width: 40px;
   color: #64748b;
 }
 
 .col-res {
-  width: 45px;
+  width: 50px;
 }
 
 .col-pct {
-  width: 60px;
+  width: 65px;
   text-align: right;
 }
 
-.deck-column {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Puntos de victoria/derrota */
 .status-cell {
   display: flex;
   align-items: center;
@@ -353,44 +359,18 @@ td {
   font-weight: bold;
 }
 
-/* 5. DISEÑO ESCRITORIO */
 @media (min-width: 768px) {
   .app-container {
-    padding: 1rem;
     width: 94%;
-  }
-
-  .player-selector {
-    border-radius: 12px;
-    margin-bottom: 1rem;
-  }
-
-  .card-form {
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .table-wrapper {
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .form-group {
     grid-template-columns: 1fr 1fr auto;
-  }
-
-  header h1 {
-    font-size: 2.5rem;
-  }
-
-  th,
-  td {
-    padding: 1rem 1.5rem;
-    font-size: 1rem;
+    align-items: end;
   }
 
   .col-id {
-    width: 60px;
+    width: 70px;
   }
 
   .col-res {
@@ -405,13 +385,11 @@ td {
     content: "ictoria";
   }
 
-  /* Truco CSS */
   .loss-text span:last-child::after {
     content: "errota";
   }
 }
 
-/* Animaciones */
 .spinning {
   animation: spin 1s linear infinite;
   display: inline-block;
