@@ -155,9 +155,10 @@ onMounted(cargarDatos);
               <td class="mono col-id">#{{ p.game || (partidasFiltradas.length - index) }}</td>
               <td class="bold deck-name">{{ p.deck || p.Deck }}</td>
               <td class="col-res">
-                <div class="status-cell" :class="(p.win == 1) ? 'win-text' : 'loss-text'">
-                  <span :class="['dot', (p.win == 1) ? 'win' : 'loss']"></span>
-                  <span>{{ (p.win == 1) ? 'V' : 'D' }}</span>
+                <div class="status-cell">
+                  <span :class="['res-indicator', (p.win == 1) ? 'win-style' : 'loss-style']">
+                    {{ (p.win == 1) ? 'V' : 'D' }}
+                  </span>
                 </div>
               </td>
               <td class="mono accent col-pct">{{ formatPct(p.acc_wr || p.Acc_wr) }}</td>
@@ -171,7 +172,7 @@ onMounted(cargarDatos);
 </template>
 
 <style scoped>
-/* 1. ESTRUCTURA BASE Y RESET DE DESBORDAMIENTO */
+/* 1. ESTRUCTURA GLOBAL Y CONTENEDORES */
 .main-background {
   min-height: 100vh;
   width: 100vw;
@@ -180,16 +181,13 @@ onMounted(cargarDatos);
   background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)),
     url('./assets/Backgound.jpg') center/cover no-repeat fixed;
   padding-bottom: 2rem;
-  padding-top: 1rem;
   overflow-x: hidden;
 }
 
 .app-container {
   width: 100%;
-  max-width: 1400px;
-  /* Evita que se estire infinito en monitores gigantes */
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0;
   display: flex;
   flex-direction: column;
 }
@@ -225,12 +223,6 @@ onMounted(cargarDatos);
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.2rem;
-  box-sizing: border-box;
-}
-
-.header-info {
-  flex: 1;
-  min-width: 0;
 }
 
 .header-info h1 {
@@ -239,12 +231,6 @@ onMounted(cargarDatos);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.btn-refresh-wrapper {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
 }
 
 .btn-refresh {
@@ -257,7 +243,6 @@ onMounted(cargarDatos);
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  margin-left: 10px;
 }
 
 /* 3. FORMULARIO */
@@ -277,12 +262,12 @@ onMounted(cargarDatos);
 
 input {
   width: 100%;
-  box-sizing: border-box;
   padding: 14px;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
   color: white;
+  box-sizing: border-box;
 }
 
 .btn-send {
@@ -295,109 +280,150 @@ input {
   cursor: pointer;
 }
 
-/* 4. TABLA (MÓVIL PRIMERO) */
+/* 4. TABLA TÉCNICA (Optimización de espacio) */
 .table-wrapper {
-  overflow: hidden;
   background: rgba(15, 23, 42, 0.4);
   margin: 0 0.5rem;
   border-radius: 8px;
+  overflow: hidden;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
-  /* Permite ajuste fluido en móvil */
 }
 
 thead tr {
-  background: rgba(0, 0, 0, 0.4);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.5);
 }
 
 th {
   padding: 12px 8px;
   color: #94a3b8;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 900;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   border-bottom: 2px solid #3b82f6;
   text-align: left;
 }
 
 td {
-  padding: 12px 8px;
+  padding: 10px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 0.85rem;
   vertical-align: middle;
 }
 
-/* Ajuste de anchos para priorizar el Nombre del Mazo */
+/* Proporciones de columnas en móvil */
 .col-id {
-  width: 45px;
-  color: #64748b;
+  width: 35px;
+  color: #475569;
+  font-size: 0.75rem;
 }
 
 .col-res {
-  width: 40px;
+  width: 35px;
+  text-align: center;
 }
 
 .col-pct {
-  width: 60px;
+  width: 55px;
   text-align: right;
 }
 
 .deck-name {
   color: #ffffff;
   font-weight: 700;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
   white-space: normal;
-  /* Permite dos líneas si es necesario */
   word-break: break-word;
 }
 
-/* Estilos de estado */
-tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-tbody tr:hover {
-  background: rgba(59, 130, 246, 0.05);
-}
-
+/* 5. DISEÑO DE RESULTADO (PULIDO Y DISCRETO) */
 .status-cell {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-weight: 800;
+  justify-content: center;
+  gap: 6px;
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.res-indicator {
+  font-weight: 900;
+  font-size: 0.75rem;
+  position: relative;
+}
+
+/* El punto de luz al lado del texto */
+.res-indicator::before {
+  content: '';
   display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
-.dot.win {
+.win-style {
+  color: #34d399;
+}
+
+.win-style::before {
   background: #34d399;
   box-shadow: 0 0 8px #34d399;
 }
 
-.dot.loss {
+.loss-style {
+  color: #f87171;
+}
+
+.loss-style::before {
   background: #f87171;
   box-shadow: 0 0 8px #f87171;
 }
 
-.win-text {
-  color: #34d399;
+/* 6. ESCRITORIO */
+@media (min-width: 768px) {
+  .app-container {
+    width: 95%;
+  }
+
+  .form-group {
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+  }
+
+  .header-info h1 {
+    font-size: 2.2rem;
+  }
+
+  /* Ajuste de columnas en PC */
+  .col-id {
+    width: 60px;
+  }
+
+  .col-res {
+    width: 100px;
+  }
+
+  .col-pct {
+    width: 90px;
+  }
+
+  .res-indicator {
+    font-size: 0.85rem;
+  }
+
+  .win-style::after {
+    content: 'ICTORIA';
+  }
+
+  .loss-style::after {
+    content: 'ERROTA';
+  }
 }
 
-.loss-text {
-  color: #f87171;
-}
-
+/* UTILIDADES Y ANIMACIONES */
 .mono {
   font-family: 'JetBrains Mono', monospace;
 }
@@ -407,68 +433,6 @@ tbody tr:hover {
   font-weight: bold;
 }
 
-/* 5. DISEÑO DE ESCRITORIO (MEDIA QUERIES) */
-@media (min-width: 768px) {
-  .app-container {
-    width: 90%;
-    margin: 0 auto;
-  }
-
-  .card-form {
-    border-radius: 12px;
-    margin: 0 0 1.5rem 0;
-  }
-
-  .table-wrapper {
-    margin: 0;
-    border-radius: 12px;
-  }
-
-  .form-group {
-    grid-template-columns: 1fr 1fr auto;
-    align-items: end;
-  }
-
-  .glass-header {
-    padding: 2rem 0;
-  }
-
-  .header-info h1 {
-    font-size: 2.5rem;
-  }
-
-  .btn-refresh {
-    width: 50px;
-    height: 50px;
-  }
-
-  /* En PC volvemos a un control más rígido de anchos */
-  table {
-    table-layout: fixed;
-  }
-
-  .col-id {
-    width: 80px;
-  }
-
-  .col-res {
-    width: 130px;
-  }
-
-  .col-pct {
-    width: 110px;
-  }
-
-  .status-cell span:last-child::after {
-    content: "ictoria";
-  }
-
-  .loss-text span:last-child::after {
-    content: "errota";
-  }
-}
-
-/* Animaciones */
 .spinning {
   animation: spin 1s linear infinite;
   display: inline-block;
