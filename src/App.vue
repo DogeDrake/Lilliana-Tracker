@@ -122,7 +122,7 @@ onMounted(cargarDatos);
           </div>
           <div class="input-field">
             <label>Mazo ganador</label>
-            <input v-model="mazoGanador" placeholder="Kaalia..." :disabled="enviando" @keyup.enter="handleSumit" />
+            <input v-model="mazoGanador" placeholder="Otro..." :disabled="enviando" @keyup.enter="handleSumit" />
           </div>
           <button @click="handleSumit" :disabled="enviando" class="btn-send">
             {{ enviando ? '...' : 'Registrar' }}
@@ -143,8 +143,8 @@ onMounted(cargarDatos);
         <table v-else-if="partidasFiltradas.length > 0">
           <thead>
             <tr>
-              <th class="col-id">PARTIDA</th>
-              <th>MAZO</th>
+              <th class="col-id">Nº</th>
+              <th class="col-main">MAZO</th>
               <th class="col-res">RESULTADO</th>
               <th class="col-pct">WR</th>
               <th class="hide-mobile col-pct">GLOBAL</th>
@@ -199,6 +199,7 @@ onMounted(cargarDatos);
   padding: 4px;
   backdrop-filter: blur(10px);
   margin-bottom: 0.5rem;
+  margin-top: 2rem;
 }
 
 .player-selector button {
@@ -318,7 +319,7 @@ th {
 }
 
 td {
-  padding: 10px 8px;
+  padding: 10px 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 0.85rem;
   vertical-align: middle;
@@ -339,6 +340,11 @@ td {
 .col-pct {
   width: 55px;
   text-align: right;
+}
+
+.col-main {
+  text-align: left;
+  padding-left: 10px !important;
 }
 
 .deck-name {
@@ -476,4 +482,6 @@ td {
 .fade-leave-to {
   opacity: 0;
 }
+
+
 </style>
