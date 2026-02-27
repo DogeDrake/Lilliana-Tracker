@@ -1,3 +1,89 @@
+<script setup>
+import { ref, onMounted, computed, watch } from "vue";
+import { leerSheet, escribirPartida } from "./services/sheets";
+
+const jugadorActivo = ref("jugador1");
+const partidas = ref([]);
+const cargando = ref(true);
+const enviando = ref(false);
+const mazoYo = ref("");
+const mazoGanador = ref("");
+
+// Sistema de Notificación
+const mensajeStatus = ref({ texto: "", tipo: "", visible: false });
+
+function mostrarNotificacion(texto, tipo = "success") {
+  mensajeStatus.value = { texto, tipo, visible: true };
+  setTimeout(() => { mensajeStatus.value.visible = false; }, 3000);
+}
+
+let ultimaPeticionId = 0;
+
+async function cargarDatos() {
+  cargando.value = true;
+  const idActual = ++ultimaPeticionId;
+  const jugadorAlLanzar = jugadorActivo.value;
+
+  try {
+    const data = await leerSheet(jugadorAlLanzar);
+    if (idActual !== ultimaPeticionId) return;
+    partidas.value = Array.isArray(data) ? data : [];
+  } catch (error) {
+    if (idActual === ultimaPeticionId) {
+      mostrarNotificacion("Error al leer el grimorio", "error");
+      partidas.value = [];
+    }
+  } finally {
+    if (idActual === ultimaPeticionId) cargando.value = false;
+  }
+}
+
+watch(jugadorActivo, () => {
+  partidas.value = [];
+  cargarDatos();
+});
+
+async function handleSumit() {
+  if (!mazoYo.value || !mazoGanador.value) {
+    mostrarNotificacion("Faltan datos del duelo", "error");
+    return;
+  }
+  enviando.value = true;
+
+  try {
+    const res = await escribirPartida(jugadorActivo.value, {
+      yo: mazoYo.value,
+      ganador: mazoGanador.value
+    });
+
+    if (res.success) {
+      mazoYo.value = "";
+      mazoGanador.value = "";
+      mostrarNotificacion("Duelo registrado en el plano");
+      setTimeout(cargarDatos, 1500);
+    }
+  } catch (err) {
+    mostrarNotificacion("Fallo en la conexión mágica", "error");
+  } finally {
+    enviando.value = false;
+  }
+}
+
+const partidasFiltradas = computed(() => {
+  return [...partidas.value].reverse().filter(p => {
+    const m = p.deck || p.Deck || p.DECK;
+    return m && m.toString().trim() !== "";
+  });
+});
+
+const formatPct = (val) => {
+  if (val === undefined || val === null || isNaN(val)) return "0%";
+  return (parseFloat(val) * 100).toFixed(1) + "%";
+};
+
+onMounted(cargarDatos);
+</script>
+
 <template>
   <div class="main-background">
     <Transition name="fade">
@@ -55,9 +141,9 @@
         <table v-else-if="partidasFiltradas.length > 0">
           <thead>
             <tr>
-              <th class="col-id">#</th>
+              <th class="col-id">PARTIDA</th>
               <th>MAZO</th>
-              <th class="col-res">RES</th>
+              <th class="col-res">RESULTADO</th>
               <th class="col-pct">WR</th>
               <th class="hide-mobile col-pct">GLOBAL</th>
             </tr>
@@ -82,50 +168,13 @@
   </div>
 </template>
 
-<style>
-/* 1. FIX DE DESBORDAMIENTO GLOBAL */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  /* Evita que el padding sume ancho al elemento */
-}
-
-body,
-html {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
-  /* Prohibido el scroll lateral */
-  background-color: #0f172a;
-}
-</style>
-
 <style scoped>
-/* 2. ESTRUCTURA */
-.main-background {
-  min-height: 100vh;
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
-  font-family: 'Inter', system-ui, sans-serif;
-  color: #f8fafc;
-  background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)),
-    url('./assets/Backgound.jpg') center/cover no-repeat fixed;
-  padding-bottom: 2rem;
-}
+/* --- ESTILOS DE RESALTADO DE TABLA --- */
 
-.app-container {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-/* 3. CABECERAS RESALTADAS */
 thead tr {
-  background: rgba(0, 0, 0, 0.6);
+  /* Fondo más oscuro y sólido para la cabecera */
+  background: rgba(0, 0, 0, 0.4);
+  /* Sombra inferior para dar profundidad */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
@@ -140,10 +189,47 @@ th {
   text-align: left;
 }
 
-/* 4. PLAYER SELECTOR (FIJADO AL ANCHO) */
+/* Efecto cebra suave para las filas de datos */
+tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05);
+  /* Resaltado al pasar el ratón o pulsar */
+}
+
+.deck-name {
+  color: #ffffff;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+/* Reajuste de la tabla para que no tenga bordes redondeados en la cabecera interna */
+.table-wrapper {
+  overflow: hidden;
+}
+
+/* --- MANTENEMOS TU ESTRUCTURA ANTERIOR --- */
+.main-background {
+  min-height: 100vh;
+  width: 100vw;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #f8fafc;
+  background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)),
+    url('./assets/Backgound.jpg') center/cover no-repeat fixed;
+  padding-bottom: 2rem;
+}
+
+.app-container {
+  width: 100%;
+  max-width: 1250px;
+  margin: 0 auto;
+  padding-top: 2;
+}
+
 .player-selector {
   display: flex;
-  width: 100%;
   background: rgba(255, 255, 255, 0.05);
   padding: 4px;
   backdrop-filter: blur(10px);
@@ -157,108 +243,91 @@ th {
   color: #64748b;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .player-selector button.active {
   background: #3b82f6;
   color: white;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
-/* 5. TABLA AJUSTADA AL MILÍMETRO */
-.table-wrapper {
+.glass-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1rem;
+}
+
+.card-form {
+  background: rgba(30, 41, 59, 0.5);
+  padding: 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.form-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+input {
   width: 100%;
-  overflow-x: hidden;
-  /* Seguridad extra */
-  background: rgba(15, 23, 42, 0.4);
+  box-sizing: border-box;
+  padding: 14px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: white;
+}
+
+.btn-send {
+  height: 50px;
+  background: #10b981;
+  border-radius: 8px;
+  border: none;
+  color: white;
+  font-weight: 900;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  /* Obliga a las celdas a respetar el ancho del dispositivo */
 }
 
 td {
-  padding: 12px 8px;
+  padding: 14px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 0.85rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.9rem;
 }
 
-/* Anchos fijos para evitar que la tabla "empuje" hacia la derecha */
 .col-id {
   width: 40px;
+  color: #64748b;
 }
 
 .col-res {
-  width: 45px;
+  width: 50px;
 }
 
 .col-pct {
-  width: 60px;
+  width: 65px;
   text-align: right;
 }
 
-.deck-name {
-  color: #ffffff;
-  font-weight: 700;
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 800;
 }
 
-/* 6. RESPONSIVIDAD */
-@media (max-width: 768px) {
-  .hide-mobile {
-    display: none;
-  }
-
-  .btn-text {
-    font-size: 0.8rem;
-  }
-
-  .glass-header h1 {
-    font-size: 1.5rem;
-  }
-}
-
-@media (min-width: 769px) {
-  .app-container {
-    width: 96%;
-    max-width: 1250px;
-    margin: 20px auto;
-  }
-
-  .col-id {
-    width: 70px;
-  }
-
-  .col-res {
-    width: 100px;
-  }
-
-  .col-pct {
-    width: 90px;
-  }
-
-  .status-cell span:last-child::after {
-    content: "ictoria";
-  }
-
-  .loss-text span:last-child::after {
-    content: "errota";
-  }
-}
-
-/* Animaciones y estados */
 .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   display: inline-block;
-  margin-right: 4px;
 }
 
 .dot.win {
@@ -286,6 +355,37 @@ td {
 .accent {
   color: #60a5fa;
   font-weight: bold;
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    width: 94%;
+  }
+
+  .form-group {
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+  }
+
+  .col-id {
+    width: 70px;
+  }
+
+  .col-res {
+    width: 120px;
+  }
+
+  .col-pct {
+    width: 100px;
+  }
+
+  .status-cell span:last-child::after {
+    content: "ictoria";
+  }
+
+  .loss-text span:last-child::after {
+    content: "errota";
+  }
 }
 
 .spinning {
