@@ -136,9 +136,9 @@ onMounted(cargarDatos);
         <table v-else-if="partidasFiltradas.length > 0">
           <thead>
             <tr>
-              <th class="col-id">#</th>
+              <th class="col-id">Partida</th>
               <th>Mazo</th>
-              <th class="col-res">Res</th>
+              <th class="col-res">Resultado</th>
               <th class="col-pct">WR</th>
               <th class="hide-mobile col-pct">Global</th>
             </tr>
