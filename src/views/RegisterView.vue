@@ -62,6 +62,43 @@
     </div>
 </template>
 
+<script setup>
+import { ref } from 'vue'
+import { supabase } from '../supabaseClient'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const email = ref('')
+const password = ref('')
+const username = ref('')
+const displayName = ref('')
+const acceptTerms = ref(false)
+const loading = ref(false)
+
+const handleRegister = async () => {
+    loading.value = true
+    try {
+        const { data, error } = await supabase.auth.signUp({
+            email: email.value,
+            password: password.value,
+            options: {
+                data: {
+                    username: username.value,
+                    display_name: displayName.value
+                }
+            }
+        })
+        if (error) throw error
+        alert('¡Registro casi completado! Revisa tu email para confirmar tu cuenta.')
+        router.push('/login')
+    } catch (error) {
+        alert(error.message)
+    } finally {
+        loading.value = false
+    }
+}
+</script>
+
 <style scoped>
 /* 1. ELIMINAR BORDES Y ASEGURAR COBERTURA TOTAL */
 .auth-viewport {
