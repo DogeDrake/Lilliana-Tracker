@@ -1,3 +1,125 @@
+<script setup>
+import { ref, onMounted, reactive } from 'vue'
+import { supabase } from '../supabaseClient'
+import DeckCard from '../components/DeckCard.vue'
+
+const profile = ref(null)
+const decks = ref([])
+const stats = reactive({
+    totalMatches: 0,
+    winRate: 0
+})
+const showAddDeck = ref(false)
+const isSubmitting = ref(false)
+
+const newDeck = reactive({
+    nombre_personalizado: '',
+    formato: 'commander',
+    comandante_nombre: '',
+    arquetipo_pauper: '',
+    image_url: '',
+    decklist_url: '',
+    colors: []
+})
+
+onMounted(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+        // 1. Cargar el perfil del usuario
+        const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+        profile.value = p
+
+        // 2. Cargar sus mazos
+        fetchDecks(user.id)
+
+        // 3. Calcular estadísticas basadas en sus participaciones reales
+        fetchStats(user.id)
+    }
+})
+
+const fetchDecks = async (userId) => {
+    const { data: d } = await supabase.from('decks')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+    decks.value = d || []
+}
+
+/**
+ * Lógica para obtener las partidas donde el usuario ha participado
+ */
+const fetchStats = async (userId) => {
+    try {
+        // Consultamos la tabla match_participants buscando el user_id del usuario logueado
+        const { data: participations, error } = await supabase
+            .from('match_participants')
+            .select('is_winner')
+            .eq('user_id', userId)
+
+        if (error) throw error
+
+        if (participations) {
+            const total = participations.length
+            // Contamos cuántas veces is_winner es true
+            const wins = participations.filter(p => p.is_winner === true).length
+
+            stats.totalMatches = total
+            // Calculamos el Win Rate (evitando división por cero)
+            stats.winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : 0
+        }
+    } catch (err) {
+        console.error("Error al calcular estadísticas:", err.message)
+    }
+}
+
+const openDecklist = (url) => {
+    if (url) window.open(url, '_blank')
+}
+
+const addNewDeck = async () => {
+    isSubmitting.value = true
+    try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error("No hay sesión activa")
+
+        const colorString = newDeck.colors.sort().join('')
+
+        const { error } = await supabase.from('decks').insert([
+            {
+                user_id: user.id,
+                nombre_personalizado: newDeck.nombre_personalizado,
+                formato: newDeck.formato,
+                comandante_nombre: newDeck.formato === 'commander' ? newDeck.comandante_nombre : null,
+                arquetipo_pauper: newDeck.formato === 'pauper' ? newDeck.arquetipo_pauper : null,
+                color_identity: colorString,
+                image_url: newDeck.image_url || null,
+                decklist_url: newDeck.decklist_url || null,
+                is_active: true
+            }
+        ])
+
+        if (error) throw error
+
+        Object.assign(newDeck, {
+            nombre_personalizado: '', comandante_nombre: '',
+            arquetipo_pauper: '', image_url: '', decklist_url: '', colors: []
+        })
+        showAddDeck.value = false
+        await fetchDecks(user.id)
+
+    } catch (err) {
+        alert('Error: ' + err.message)
+    } finally {
+        isSubmitting.value = false
+    }
+}
+
+async function handleLogout() {
+    await supabase.auth.signOut()
+    window.location.href = '/Lilliana-Tracker/login'
+}
+</script>
+
 <template>
     <div class="profile-view-root" v-if="profile">
         <div class="fixed-bg-elements">
@@ -30,11 +152,11 @@
                         <span class="q-label">Grimorios</span>
                     </div>
                     <div class="q-stat">
-                        <span class="q-num">?</span>
+                        <span class="q-num">{{ stats.totalMatches }}</span>
                         <span class="q-label">Partidas</span>
                     </div>
                     <div class="q-stat">
-                        <span class="q-num">0%</span>
+                        <span class="q-num">{{ stats.winRate }}%</span>
                         <span class="q-label">Win Rate</span>
                     </div>
                 </div>
@@ -79,23 +201,20 @@
                                 <option value="pauper">Pauper</option>
                             </select>
                         </div>
-
                         <div class="form-group">
-                            <label>Identidad de Color</label>
+                            <label>Colores</label>
                             <div class="color-picker">
                                 <label v-for="c in ['W', 'U', 'B', 'R', 'G']" :key="c"
                                     :class="['color-dot', c, { active: newDeck.colors.includes(c) }]">
-                                    <input type="checkbox" :value="c" v-model="newDeck.colors" hidden />
-                                    {{ c }}
+                                    <input type="checkbox" :value="c" v-model="newDeck.colors" hidden /> {{ c }}
                                 </label>
                             </div>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>URL del Deck (Moxfield, Archidekt...)</label>
-                        <input v-model="newDeck.decklist_url" type="url"
-                            placeholder="https://www.moxfield.com/decks/..." />
+                        <label>URL del Deck</label>
+                        <input v-model="newDeck.decklist_url" type="url" placeholder="https://..." />
                     </div>
 
                     <div class="form-group" v-if="newDeck.formato === 'commander'">
@@ -106,13 +225,13 @@
 
                     <div class="form-group" v-if="newDeck.formato === 'pauper'">
                         <label>Arquetipo Pauper</label>
-                        <input v-model="newDeck.arquetipo_pauper" type="text"
-                            placeholder="Ej: Burn, Affinity, Delver..." required />
+                        <input v-model="newDeck.arquetipo_pauper" type="text" placeholder="Ej: Burn, Affinity..."
+                            required />
                     </div>
 
                     <div class="form-group">
-                        <label>URL de la Imagen de Portada (Opcional)</label>
-                        <input v-model="newDeck.image_url" type="url" placeholder="Direct link a .jpg o .png" />
+                        <label>URL Imagen Portada</label>
+                        <input v-model="newDeck.image_url" type="url" placeholder="Link directo" />
                     </div>
 
                     <button type="submit" class="btn-submit-magic" :disabled="isSubmitting">
@@ -123,93 +242,6 @@
         </div>
     </div>
 </template>
-
-<script setup>
-import { ref, onMounted, reactive } from 'vue'
-import { supabase } from '../supabaseClient'
-import DeckCard from '../components/DeckCard.vue'
-
-const profile = ref(null)
-const decks = ref([])
-const showAddDeck = ref(false)
-const isSubmitting = ref(false)
-
-const newDeck = reactive({
-    nombre_personalizado: '',
-    formato: 'commander',
-    comandante_nombre: '',
-    arquetipo_pauper: '',
-    image_url: '',
-    decklist_url: '', // Nueva columna
-    colors: []
-})
-
-onMounted(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-        profile.value = p
-        fetchDecks(user.id)
-    }
-})
-
-const fetchDecks = async (userId) => {
-    const { data: d } = await supabase.from('decks').select('*').eq('user_id', userId).order('created_at', { ascending: false })
-    decks.value = d || []
-}
-
-// Función para abrir la URL del mazo
-const openDecklist = (url) => {
-    if (url) {
-        window.open(url, '_blank');
-    } else {
-        console.log("Este mazo no tiene URL configurada.");
-    }
-}
-
-const addNewDeck = async () => {
-    isSubmitting.value = true
-    try {
-        const { data: { user } } = await supabase.auth.getUser()
-        const colorString = newDeck.colors.sort().join('')
-
-        const { error } = await supabase.from('decks').insert([
-            {
-                user_id: user.id,
-                nombre_personalizado: newDeck.nombre_personalizado,
-                formato: newDeck.formato,
-                comandante_nombre: newDeck.formato === 'commander' ? newDeck.comandante_nombre : null,
-                arquetipo_pauper: newDeck.formato === 'pauper' ? newDeck.arquetipo_pauper : null,
-                color_identity: colorString,
-                image_url: newDeck.image_url || null,
-                decklist_url: newDeck.decklist_url || null, // Guardamos la URL
-                is_active: true
-            }
-        ])
-
-        if (error) throw error
-
-        // Reset
-        Object.assign(newDeck, {
-            nombre_personalizado: '', comandante_nombre: '',
-            arquetipo_pauper: '', image_url: '', decklist_url: '', colors: []
-        })
-        showAddDeck.value = false
-        await fetchDecks(user.id)
-
-    } catch (err) {
-        alert('Error en la base de datos: ' + err.message)
-    } finally {
-        isSubmitting.value = false
-    }
-}
-
-async function handleLogout() {
-    await supabase.auth.signOut()
-    window.location.href = '/Lilliana-Tracker/login'
-}
-</script>
-
 <style scoped>
 /* (Estilos previos heredados) */
 .profile-view-root {
