@@ -76,9 +76,9 @@ function changeFormat(newFormat) {
 }
 
 async function saveMatch() {
-    // Validación: El ganador debe tener un mazo/comandante
+    // 1. Validación: El ganador debe tener un mazo anotado
     if (!participants.value[winnerIndex.value].deck) {
-        alert("¡No puedes ganar sin un mazo! Indica el comandante o arquetipo del ganador.")
+        alert("¡El ganador debe tener un Comandante o Arquetipo!")
         return
     }
 
@@ -88,43 +88,48 @@ async function saveMatch() {
         const { data: { session } } = await supabase.auth.getSession()
         const creatorId = session?.user?.id
 
-        // 1. Crear el registro de la partida
+        if (!creatorId) throw new Error("No se encontró sesión de usuario")
+
+        // 2. Insertar la Partida (Cabecera)
+        // Usamos 'creator_id', 'formato' y 'notas_globales' según tu esquema
         const { data: matchData, error: matchError } = await supabase
             .from('matches')
             .insert([{
+                creator_id: creatorId, // <-- Antes era creado_por
                 formato: form.value.formato,
-                notas: form.value.notas,
-                creado_por: creatorId,
-                fecha: new Date().toISOString()
+                notas_globales: form.value.notas, // <-- Antes era notas
+                fecha_partida: new Date().toISOString(), // <-- Antes era fecha
+                is_public: true // Opcional, según tu esquema
             }])
             .select()
             .single()
 
         if (matchError) throw matchError
 
-        // 2. Preparar participantes filtrando slots vacíos
+        // 3. Preparar los participantes filtrando slots vacíos
         const participantsToSave = participants.value
             .slice(0, participantsCount.value)
             .filter(p => p.deck.trim() !== '')
             .map((p, index) => ({
                 match_id: matchData.id,
-                player_name: p.name || 'Anónimo',
-                deck_name: p.deck,
-                is_winner: index === winnerIndex.value
+                player_name_manual: p.name || 'Anónimo', // Nombre manual si no es usuario
+                deck_name_manual: p.deck, // Mazo manual si no seleccionamos deck_id
+                is_winner: index === winnerIndex.value,
+                puesto: index === winnerIndex.value ? 1 : null // Si gana, es puesto 1
             }))
 
-        // 3. Insertar participantes
+        // 4. Insertar Participantes
         const { error: partError } = await supabase
             .from('match_participants')
             .insert(participantsToSave)
 
         if (partError) throw partError
 
-        alert("✨ Registro completado.")
+        alert("✨ Partida registrada correctamente.")
         router.push('/historial')
 
     } catch (error) {
-        console.error("Error:", error)
+        console.error("Error en el guardado:", error)
         alert("Fallo en la Matrix: " + error.message)
     } finally {
         loading.value = false
