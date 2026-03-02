@@ -20,7 +20,7 @@ const newDeck = reactive({
     comandante_nombre: '',
     arquetipo_pauper: '',
     image_url: '',
-    decklist_url: '',
+    decklist_url: '', // Campo para la URL
     colors: []
 })
 
@@ -87,7 +87,7 @@ const addNewDeck = async () => {
                 arquetipo_pauper: newDeck.formato === 'pauper' ? newDeck.arquetipo_pauper : null,
                 color_identity: colorString,
                 image_url: newDeck.image_url || null,
-                decklist_url: newDeck.decklist_url || null,
+                decklist_url: newDeck.decklist_url || null, // Se sube a la BD
                 is_active: true
             }
         ])
@@ -188,6 +188,11 @@ async function handleLogout() {
                             required />
                     </div>
 
+                    <div class="form-group">
+                        <label>URL del Grimorio (Decklist)</label>
+                        <input v-model="newDeck.decklist_url" type="url" placeholder="https://moxfield.com/..." />
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label>Formato</label>
@@ -246,7 +251,6 @@ async function handleLogout() {
     color: white;
 }
 
-/* Capa para mejorar legibilidad sobre el fondo */
 .vignette-overlay {
     position: fixed;
     top: 0;
@@ -266,7 +270,6 @@ async function handleLogout() {
     padding: 0 20px;
 }
 
-/* Header y Stats */
 .profile-main-header {
     padding: 40px 0;
 }
@@ -352,7 +355,6 @@ async function handleLogout() {
     text-transform: uppercase;
 }
 
-/* Grid de Mazos */
 .decks-section {
     padding-bottom: 100px;
 }
@@ -390,7 +392,6 @@ async function handleLogout() {
     cursor: pointer;
 }
 
-/* Modal Glassmorphism */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -458,7 +459,6 @@ async function handleLogout() {
     gap: 15px;
 }
 
-/* Color Picker */
 .color-picker {
     display: flex;
     gap: 5px;
@@ -522,7 +522,6 @@ async function handleLogout() {
     margin-top: 10px;
 }
 
-/* Loading Spinner */
 .loading-overlay {
     height: 100vh;
     display: flex;
