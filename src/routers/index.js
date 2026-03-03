@@ -6,13 +6,14 @@ const routes = [
     path: "/login",
     name: "Login",
     component: () => import("../views/LoginView.vue"),
+    meta: { requiresAuth: false }, // Claridad absoluta
   },
   {
     path: "/register",
     name: "Register",
     component: () => import("../views/RegisterView.vue"),
+    meta: { requiresAuth: false },
   },
-  // Rutas Protegidas
   {
     path: "/",
     name: "Home",
@@ -40,13 +41,14 @@ const routes = [
   {
     path: "/jugadores",
     name: "Jugadores",
-    component: () => import("../views/PlayersView.vue"), //Buscador de jugadores
+    component: () => import("../views/PlayersView.vue"),
     meta: { requiresAuth: true, showNav: true },
   },
   {
     path: "/profile/:username",
     name: "Profile",
     component: () => import("../views/UserProfileView.vue"),
+    meta: { requiresAuth: true, showNav: true }, // Asumo que prefieres que estén logueados
   },
   {
     path: "/mi-perfil",
@@ -54,35 +56,38 @@ const routes = [
     component: () => import("../views/MyProfileView.vue"),
     meta: { requiresAuth: true, showNav: true },
   },
+  // RUTA DE CAPTURA DE ERRORES (Evita el 404 si el router se pierde)
+  {
+    path: "/:pathMatch(.*)*",
+    redirect: { name: "Home" },
+  },
 ];
 
 const router = createRouter({
-  // Importante: El BASE_URL debe coincidir con /Lilliana-Tracker/ en vite.config.js
+  // Aseguramos que el history tome correctamente la base de GitHub Pages
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 });
 
 /**
- * GUARDIA DE SEGURIDAD
- * Controla que los usuarios no entren a zonas privadas sin estar logueados.
+ * GUARDIA DE SEGURIDAD CORREGIDA
  */
 router.beforeEach(async (to, from, next) => {
-  // Obtenemos la sesión actual de Supabase
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
 
-  // Caso 1: La ruta requiere autenticación y el usuario NO tiene sesión
-  if (to.meta.requiresAuth && !session) {
-    // Redirigimos al Login por nombre de ruta
-    next({ name: "Login" });
+  // 1. Si la ruta requiere auth y NO hay sesión
+  if (requiresAuth && !session) {
+    // Usamos el path exacto para evitar problemas de resolución de nombres en subcarpetas
+    next("/login");
   }
-  // Caso 2: El usuario ya está logueado e intenta ir a Login o Register
+  // 2. Si hay sesión e intenta ir a login/register
   else if (session && (to.name === "Login" || to.name === "Register")) {
-    // Lo mandamos al Home directamente
-    next({ name: "Home" });
+    next("/");
   }
-  // Caso 3: Todo correcto, permitimos la navegación
+  // 3. En cualquier otro caso, adelante
   else {
     next();
   }
