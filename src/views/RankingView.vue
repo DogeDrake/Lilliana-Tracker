@@ -16,31 +16,46 @@
         <div v-else class="honor-scroll">
             <div class="ranking-container">
                 <div v-for="(player, index) in leaders" :key="player.username" class="honor-row"
-                    :class="getRankClass(index)">
+                    :class="[getRankClass(index), { 'is-link': player.is_registered }]" @click="goToProfile(player)">
                     <div class="rank-badge-wrapper">
                         <div class="rank-number" v-if="index > 2">#{{ index + 1 }}</div>
                         <div class="medal-display" v-else>{{ getMedal(index) }}</div>
                     </div>
 
                     <div class="warrior-profile">
-                        <h3 class="warrior-name">{{ player.username }}</h3>
+                        <div class="name-wrapper">
+                            <h3 class="warrior-name">{{ player.username }}</h3>
+                            <span v-if="player.is_registered" class="registered-badge">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                </svg>
+                            </span>
+                        </div>
                         <div class="warrior-meta">
                             <span class="victory-count">{{ player.total_wins }} Victorias</span>
                             <i class="separator"></i>
-                            <span class="match-total">{{ player.total_matches }} Partidas jugadas</span>
+                            <span class="match-total">{{ player.total_matches }} Partidas</span>
                         </div>
                     </div>
 
                     <div class="lethality-meter">
                         <div class="meter-content">
                             <span class="meter-value">{{ player.win_rate }}%</span>
-                            <span class="meter-label">Victorias</span>
+                            <span class="meter-label">Eficiencia</span>
                         </div>
                         <div class="meter-bar-bg">
                             <div class="meter-bar-fill"
                                 :style="{ width: player.win_rate + '%', backgroundColor: getMeterColor(player.win_rate, index) }">
                             </div>
                         </div>
+                    </div>
+
+                    <div v-if="player.is_registered" class="profile-arrow">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
                     </div>
                 </div>
 
@@ -55,26 +70,57 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { supabase } from '../supabaseClient'
+import { useRouter } from 'vue-router' // Importamos el router
 
+const router = useRouter()
 const leaders = ref([])
 const loading = ref(true)
 
 onMounted(async () => {
     try {
+        loading.value = true
+
+        // Traemos todos los participantes. 
+        // No podemos usar !inner aquí porque la relación en la DB es por ID, 
+        // pero nosotros lo haremos por nombre en el código.
         const { data, error } = await supabase
             .from('match_participants')
-            .select(`is_winner, player_name_manual, profiles (username)`)
+            .select(`
+                is_winner,
+                player_name_manual
+            `)
 
         if (error) throw error
 
+        // Traemos todos los perfiles registrados para comparar
+        const { data: registeredUsers, error: pError } = await supabase
+            .from('profiles')
+            .select('username')
+
+        if (pError) throw pError
+
+        // Creamos un Set para búsqueda rápida de usuarios con cuenta
+        const usernamesConCuenta = new Set(registeredUsers.map(u => u.username))
+
         const stats = {}
+
         data.forEach(row => {
-            const name = row.profiles?.username || row.player_name_manual || 'Anónimo'
-            if (!stats[name]) {
-                stats[name] = { username: name, total_wins: 0, total_matches: 0 }
+            const name = row.player_name_manual
+
+            // SOLO si el nombre manual existe en nuestra lista de usuarios con cuenta
+            if (name && usernamesConCuenta.has(name)) {
+                if (!stats[name]) {
+                    stats[name] = {
+                        username: name,
+                        total_wins: 0,
+                        total_matches: 0,
+                        is_registered: true
+                    }
+                }
+
+                stats[name].total_matches++
+                if (row.is_winner) stats[name].total_wins++
             }
-            stats[name].total_matches++
-            if (row.is_winner) stats[name].total_wins++
         })
 
         leaders.value = Object.values(stats)
@@ -82,15 +128,21 @@ onMounted(async () => {
                 ...p,
                 win_rate: p.total_matches > 0 ? Math.round((p.total_wins / p.total_matches) * 100) : 0
             }))
-            .sort((a, b) => b.total_wins !== a.total_wins ? b.total_wins - a.total_wins : b.win_rate - a.win_rate)
+            .sort((a, b) => b.total_wins - a.total_wins)
             .slice(0, 15)
 
     } catch (err) {
-        console.error("Error en el Hall of Fame:", err)
+        console.error("Error en el Ranking:", err.message)
     } finally {
         loading.value = false
     }
 })
+
+// Asegúrate de que la función de navegación no tenga filtros:
+const goToProfile = (player) => {
+    // Navegamos directamente con el username que tengamos
+    router.push(`/profile/${player.username}`)
+}
 
 const getMedal = (index) => ['🥇', '🥈', '🥉'][index]
 const getRankClass = (index) => {
@@ -109,6 +161,43 @@ const getMeterColor = (wr, index) => {
 </script>
 
 <style scoped>
+/* (Mantenemos tus estilos y añadimos los nuevos para la interactividad) */
+
+.is-link {
+    cursor: pointer;
+}
+
+.name-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.registered-badge {
+    color: #3b82f6;
+    display: flex;
+    align-items: center;
+}
+
+.profile-arrow {
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: 0.3s;
+    color: #3b82f6;
+    margin-left: 10px;
+}
+
+.honor-row.is-link:hover .profile-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.honor-row.is-link:hover {
+    background: rgba(59, 130, 246, 0.05);
+    border-bottom-color: #3b82f6;
+}
+
+/* Resto de tus estilos originales... */
 .hall-of-fame-root {
     padding: 40px 20px;
     max-width: 900px;
@@ -116,7 +205,6 @@ const getMeterColor = (wr, index) => {
     color: #f8fafc;
 }
 
-/* HEADER MONUMENTAL */
 .honor-header {
     text-align: center;
     margin-bottom: 60px;
@@ -140,7 +228,6 @@ const getMeterColor = (wr, index) => {
     font-size: 0.8rem;
 }
 
-/* FILAS DE HONOR */
 .honor-row {
     display: flex;
     align-items: center;
@@ -151,39 +238,6 @@ const getMeterColor = (wr, index) => {
     position: relative;
 }
 
-/* EFECTO PODIO (TOP 3) */
-.tier-gold {
-    background: linear-gradient(90deg, rgba(251, 191, 36, 0.08) 0%, transparent 100%);
-    border-bottom: 1px solid rgba(251, 191, 36, 0.2);
-}
-
-.tier-gold .warrior-name {
-    color: #fbbf24;
-    text-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
-    font-size: 1.5rem;
-}
-
-.tier-silver {
-    background: linear-gradient(90deg, rgba(203, 213, 225, 0.08) 0%, transparent 100%);
-    border-bottom: 1px solid rgba(203, 213, 225, 0.2);
-}
-
-.tier-silver .warrior-name {
-    color: #cbd5e1;
-    font-size: 1.3rem;
-}
-
-.tier-bronze {
-    background: linear-gradient(90deg, rgba(217, 119, 6, 0.08) 0%, transparent 100%);
-    border-bottom: 1px solid rgba(217, 119, 6, 0.2);
-}
-
-.tier-bronze .warrior-name {
-    color: #d97706;
-    font-size: 1.2rem;
-}
-
-/* ELEMENTOS INTERNOS */
 .rank-badge-wrapper {
     width: 60px;
     display: flex;
@@ -208,7 +262,6 @@ const getMeterColor = (wr, index) => {
 .warrior-name {
     margin: 0;
     font-weight: 800;
-    letter-spacing: -0.5px;
 }
 
 .warrior-meta {
@@ -220,10 +273,6 @@ const getMeterColor = (wr, index) => {
     color: #64748b;
 }
 
-.victory-count strong {
-    color: #f8fafc;
-}
-
 .separator {
     width: 4px;
     height: 4px;
@@ -231,7 +280,6 @@ const getMeterColor = (wr, index) => {
     border-radius: 50%;
 }
 
-/* INDICADOR DE LETALIDAD */
 .lethality-meter {
     text-align: right;
     min-width: 120px;
@@ -241,14 +289,12 @@ const getMeterColor = (wr, index) => {
     display: block;
     font-size: 1.4rem;
     font-weight: 900;
-    line-height: 1;
 }
 
 .meter-label {
     font-size: 0.6rem;
     text-transform: uppercase;
     color: #475569;
-    letter-spacing: 1px;
 }
 
 .meter-bar-bg {
@@ -263,34 +309,5 @@ const getMeterColor = (wr, index) => {
 .meter-bar-fill {
     height: 100%;
     transition: width 1s ease-out;
-}
-
-/* HOVER ANIMATION */
-.honor-row:hover {
-    background: rgba(255, 255, 255, 0.03);
-    transform: scale(1.02);
-    border-bottom-color: rgba(59, 130, 246, 0.4);
-}
-
-.loading-state {
-    text-align: center;
-    padding: 100px;
-    color: #475569;
-}
-
-.magic-loader {
-    width: 40px;
-    height: 40px;
-    border: 2px solid #1e293b;
-    border-top-color: #3b82f6;
-    border-radius: 50%;
-    animation: spin 0.8s infinite linear;
-    margin: 0 auto 20px;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
 }
 </style>

@@ -12,7 +12,6 @@ const routes = [
     name: "Register",
     component: () => import("../views/RegisterView.vue"),
   },
-
   // Rutas Protegidas
   {
     path: "/",
@@ -41,14 +40,13 @@ const routes = [
   {
     path: "/jugadores",
     name: "Jugadores",
-    component: () => import("../views/PlayersView.vue"),
+    component: () => import("../views/PlayersView.vue"), //Buscador de jugadores
     meta: { requiresAuth: true, showNav: true },
   },
   {
-    path: "/perfil/:id",
-    name: "Perfil",
+    path: "/profile/:username",
+    name: "Profile",
     component: () => import("../views/UserProfileView.vue"),
-    meta: { requiresAuth: true, showNav: true },
   },
   {
     path: "/mi-perfil",
