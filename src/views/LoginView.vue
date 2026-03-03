@@ -1,7 +1,5 @@
 <template>
     <div class="auth-page">
-        <div class="portal-glow"></div>
-
         <div class="auth-card card-inner fade-in">
             <header class="auth-header">
                 <div class="logo-orb">💀</div>
@@ -64,27 +62,16 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-/* 1. FONDO DE PÁGINA COMPLETA */
+/* 1. FONDO DE PÁGINA COMPLETA - Ahora sin gradiente complejo */
 .auth-page {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+    background: transparent;
+    /* Fondo eliminado para heredar el de la app o ser neutro */
     padding: 20px;
     position: relative;
-    overflow: hidden;
-}
-
-.portal-glow {
-    position: absolute;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 0;
 }
 
 /* 2. TARJETA DE LOGIN */
@@ -94,6 +81,7 @@ const handleLogin = async () => {
     padding: 40px 30px;
     z-index: 1;
     text-align: center;
+    /* Mantenemos el borde sutil para que la card respire si hay un fondo oscuro detrás */
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -186,7 +174,22 @@ const handleLogin = async () => {
     text-decoration: underline;
 }
 
-/* ANIMACIÓN */
+.fade-in {
+    animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .spinner-small {
     width: 20px;
     height: 20px;
