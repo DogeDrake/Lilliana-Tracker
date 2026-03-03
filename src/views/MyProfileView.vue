@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, computed } from 'vue'
 import { supabase } from '../supabaseClient'
 import DeckCard from '../components/DeckCard.vue'
 
@@ -18,20 +18,32 @@ const showDeckStats = ref(false)
 const newAvatarUrl = ref('')
 const selectedDeckStats = ref(null)
 
-// Objeto actualizado con image_url
+// Objeto de mazo expandido
 const newDeck = reactive({
     nombre_personalizado: '',
     formato: 'commander',
     decklist_url: '',
-    image_url: '' // <--- Nuevo campo
+    image_url: '',
+    commander_name: '', // Específico Commander
+    pauper_archetype: '', // Específico Pauper
+    color_identity: [] // Identidad de color
 })
+
+const colorOptions = [
+    { code: 'W', symbol: '☀️', name: 'White' },
+    { code: 'U', symbol: '💧', name: 'Blue' },
+    { code: 'B', symbol: '💀', name: 'Black' },
+    { code: 'R', symbol: '🔥', name: 'Red' },
+    { code: 'G', symbol: '🌳', name: 'Green' },
+    { code: 'C', symbol: '💎', name: 'Colorless' }
+]
 
 const stats = reactive({
     totalMatches: 0,
     winRate: 0
 })
 
-// --- LÓGICA DE CARGA ---
+// --- LÓGICA ---
 onMounted(async () => {
     try {
         loading.value = true
@@ -86,6 +98,12 @@ const fetchStatsAndHistory = async (userId, username) => {
     }
 }
 
+const toggleColor = (code) => {
+    const index = newDeck.color_identity.indexOf(code)
+    if (index > -1) newDeck.color_identity.splice(index, 1)
+    else newDeck.color_identity.push(code)
+}
+
 const openStats = async (deck) => {
     const deckNameLower = deck.nombre_personalizado.toLowerCase();
     const deckMatches = history.value.filter(h =>
@@ -93,7 +111,7 @@ const openStats = async (deck) => {
     );
 
     if (deckMatches.length === 0) {
-        selectedDeckStats.value = { name: deck.nombre_personalizado, empty: true };
+        selectedDeckStats.value = { ...deck, empty: true };
         showDeckStats.value = true;
         return;
     }
@@ -124,7 +142,7 @@ const openStats = async (deck) => {
     const getTop = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1])[0] || [null, 0];
 
     selectedDeckStats.value = {
-        name: deck.nombre_personalizado,
+        ...deck,
         total: deckMatches.length,
         winRate: ((wins / deckMatches.length) * 100).toFixed(1),
         nemesis: getTop(nemesisMap),
@@ -138,14 +156,26 @@ const createDeck = async () => {
     isSubmitting.value = true
     try {
         const { data: { user } } = await supabase.auth.getUser()
+
+        // Combinamos metadatos según formato
+        const meta = {
+            commander: newDeck.formato === 'commander' ? newDeck.commander_name : null,
+            archetype: newDeck.formato === 'pauper' ? newDeck.pauper_archetype : null,
+            colors: newDeck.color_identity.join(',')
+        }
+
         const { data, error } = await supabase
             .from('decks')
             .insert([{
                 nombre_personalizado: newDeck.nombre_personalizado,
                 formato: newDeck.formato,
                 decklist_url: newDeck.decklist_url,
-                image_url: newDeck.image_url, // <--- Enviado a la DB
-                user_id: user.id
+                image_url: newDeck.image_url,
+                user_id: user.id,
+                // Asumiendo que añades estas columnas a tu DB:
+                commander_name: meta.commander,
+                archetype: meta.archetype,
+                color_identity: meta.colors
             }])
             .select()
 
@@ -153,17 +183,22 @@ const createDeck = async () => {
 
         decks.value.unshift(data[0])
         showAddDeck.value = false
-
-        // Limpiar campos
-        newDeck.nombre_personalizado = ''
-        newDeck.decklist_url = ''
-        newDeck.image_url = ''
-        newDeck.formato = 'commander'
+        resetForm()
     } catch (err) {
         alert("Error al crear: " + err.message)
     } finally {
         isSubmitting.value = false
     }
+}
+
+const resetForm = () => {
+    newDeck.nombre_personalizado = ''
+    newDeck.decklist_url = ''
+    newDeck.image_url = ''
+    newDeck.formato = 'commander'
+    newDeck.commander_name = ''
+    newDeck.pauper_archetype = ''
+    newDeck.color_identity = []
 }
 
 const updateAvatar = async () => {
@@ -183,7 +218,7 @@ const updateAvatar = async () => {
 
 const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '---'
 const openDecklist = (url) => { if (url) window.open(url, '_blank') }
-async function handleLogout() { await supabase.auth.signOut(); window.location.href = '/Lilliana-Tracker/' }
+async function handleLogout() { await supabase.auth.signOut(); window.location.href = '/' }
 </script>
 
 <template>
@@ -205,7 +240,9 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
                         <div v-if="profile.avatar_url" class="avatar-image-container">
                             <img :src="profile.avatar_url" class="avatar-image" />
                         </div>
-                        <div v-else class="avatar-circle">{{ profile.username?.charAt(0).toUpperCase() }}</div>
+                        <div v-else class="avatar-circle">
+                            {{ profile.username?.charAt(0).toUpperCase() }}
+                        </div>
                         <div class="avatar-glow"></div>
                         <div class="edit-overlay"><span>CAMBIAR</span></div>
                     </div>
@@ -216,12 +253,18 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
                 </div>
 
                 <div class="quick-stats-row">
-                    <div class="q-stat"><span class="q-num">{{ decks.length }}</span><span class="q-label">Mazos</span>
+                    <div class="q-stat">
+                        <span class="q-num">{{ decks.length }}</span>
+                        <span class="q-label">Mazos</span>
                     </div>
-                    <div class="q-stat"><span class="q-num">{{ stats.totalMatches }}</span><span
-                            class="q-label">Partidas</span></div>
-                    <div class="q-stat"><span class="q-num">{{ stats.winRate }}%</span><span class="q-label">Win
-                            Rate</span></div>
+                    <div class="q-stat">
+                        <span class="q-num">{{ stats.totalMatches }}</span>
+                        <span class="q-label">Partidas</span>
+                    </div>
+                    <div class="q-stat">
+                        <span class="q-num">{{ stats.winRate }}%</span>
+                        <span class="q-label">Win Rate</span>
+                    </div>
                 </div>
             </header>
 
@@ -257,68 +300,112 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
         <div v-if="showAddDeck || showEditAvatar || showDeckStats" class="modal-overlay"
             @click.self="showAddDeck = false; showEditAvatar = false; showDeckStats = false">
 
-            <div v-if="showDeckStats" class="modal-content glass-modal stats-modal fade-in-up">
+            <div v-if="showDeckStats" class="modal-content glass-modal stats-modal-large fade-in-up">
                 <div class="modal-header">
                     <div class="header-indicator stats"></div>
-                    <h3>ANÁLISIS: {{ selectedDeckStats.name }}</h3>
+                    <div class="header-titles">
+                        <span class="deck-format-tag">{{ selectedDeckStats.formato }}</span>
+                        <h3>{{ selectedDeckStats.nombre_personalizado }}</h3>
+                    </div>
                     <button class="close-btn-styled" @click="showDeckStats = false">✕</button>
                 </div>
+
                 <div v-if="selectedDeckStats.empty" class="empty-state-stats">
-                    <p>Este mazo aún no tiene registros de **partida**.</p>
+                    <div class="no-data-icon">📜</div>
+                    <p>No hay registros de este mazo.</p>
                 </div>
-                <div v-else class="deck-stats-detail">
-                    <div class="stat-main-grid">
-                        <div class="stat-box"><span class="s-val">{{ selectedDeckStats.winRate }}%</span><span
-                                class="s-lab">Win Rate</span></div>
-                        <div class="stat-box"><span class="s-val">{{ selectedDeckStats.total }}</span><span
-                                class="s-lab">Partidas</span></div>
+
+                <div v-else class="stats-grid-container">
+                    <div class="main-metrics">
+                        <div class="metric-card">
+                            <span class="m-val">{{ selectedDeckStats.winRate }}%</span>
+                            <span class="m-lab">Efectividad Total</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="m-val">{{ selectedDeckStats.total }}</span>
+                            <span class="m-lab">Partidas Jugadas</span>
+                        </div>
                     </div>
-                    <div class="rivals-section">
-                        <div class="rival-card nemesis">
-                            <div class="r-icon">💀</div>
-                            <div class="r-info"><span class="r-title">NÉMESIS</span><span class="r-name">{{
-        selectedDeckStats.nemesis[0] || '---' }}</span></div>
-                            <span class="r-count">{{ selectedDeckStats.nemesis[1] }}</span>
+
+                    <div class="rival-tracking">
+                        <h4>Registro de Rivales</h4>
+                        <div class="rival-row nemesis">
+                            <span class="r-tag">NÉMESIS</span>
+                            <span class="r-name">{{ selectedDeckStats.nemesis[0] }}</span>
+                            <span class="r-score">{{ selectedDeckStats.nemesis[1] }} derrotas</span>
                         </div>
-                        <div class="rival-card victim">
-                            <div class="r-icon">⚔️</div>
-                            <div class="r-info"><span class="r-title">VÍCTIMA</span><span class="r-name">{{
-        selectedDeckStats.victim[0] || '---' }}</span></div>
-                            <span class="r-count">{{ selectedDeckStats.victim[1] }}</span>
+                        <div class="rival-row victim">
+                            <span class="r-tag">VÍCTIMA</span>
+                            <span class="r-name">{{ selectedDeckStats.victim[0] }}</span>
+                            <span class="r-score">{{ selectedDeckStats.victim[1] }} victorias</span>
                         </div>
+                    </div>
+
+                    <div v-if="selectedDeckStats.commander_name" class="deck-info-footer">
+                        <strong>Comandante:</strong> {{ selectedDeckStats.commander_name }}
                     </div>
                 </div>
             </div>
 
-            <div v-if="showAddDeck" class="modal-content glass-modal fade-in-up">
+            <div v-if="showAddDeck" class="modal-content glass-modal add-deck-modal fade-in-up">
                 <div class="modal-header">
                     <div class="header-indicator"></div>
                     <h3>FORJAR NUEVO MAZO</h3>
                     <button class="close-btn-styled" @click="showAddDeck = false">✕</button>
                 </div>
+
                 <div class="magic-form">
-                    <div class="input-group">
-                        <label>NOMBRE DEL MAZO</label>
-                        <input v-model="newDeck.nombre_personalizado" class="magic-input"
-                            placeholder="Ej: Atraxa Proliferate" />
+                    <div class="form-scroll-area">
+                        <div class="input-group">
+                            <label>Nombre del Mazo</label>
+                            <input v-model="newDeck.nombre_personalizado" class="magic-input"
+                                placeholder="Ej: Urza's Destiny" />
+                        </div>
+
+                        <div class="grid-2-col">
+                            <div class="input-group">
+                                <label>Formato</label>
+                                <select v-model="newDeck.formato" class="magic-input">
+                                    <option value="commander">Commander</option>
+                                    <option value="pauper">Pauper</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Identidad de Color</label>
+                                <div class="color-picker-mini">
+                                    <button v-for="c in colorOptions" :key="c.code" @click="toggleColor(c.code)"
+                                        :class="['color-btn', { active: newDeck.color_identity.includes(c.code) }]"
+                                        :title="c.name">
+                                        {{ c.symbol }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="newDeck.formato === 'commander'" class="input-group special-field fade-in">
+                            <label>Nombre del Comandante</label>
+                            <input v-model="newDeck.commander_name" class="magic-input gold-border"
+                                placeholder="Ej: Atraxa, Praetors' Voice" />
+                        </div>
+
+                        <div v-if="newDeck.formato === 'pauper'" class="input-group special-field fade-in">
+                            <label>Arquetipo</label>
+                            <input v-model="newDeck.pauper_archetype" class="magic-input blue-border"
+                                placeholder="Ej: Burn, Mono Blue Delver..." />
+                        </div>
+
+                        <div class="input-group">
+                            <label>URL Arte de Portada</label>
+                            <input v-model="newDeck.image_url" class="magic-input" placeholder="https://..." />
+                        </div>
+
+                        <div class="input-group">
+                            <label>Decklist (Opcional)</label>
+                            <input v-model="newDeck.decklist_url" class="magic-input"
+                                placeholder="Moxfield, Goldfish..." />
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label>FORMATO</label>
-                        <select v-model="newDeck.formato" class="magic-input">
-                            <option value="commander">Commander</option>
-                            <option value="pauper">Pauper</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>URL DE LA IMAGEN (ARTE)</label>
-                        <input v-model="newDeck.image_url" class="magic-input"
-                            placeholder="https://art-url.com/image.jpg" />
-                    </div>
-                    <div class="input-group">
-                        <label>URL DE LISTA (Opcional)</label>
-                        <input v-model="newDeck.decklist_url" class="magic-input"
-                            placeholder="https://moxfield.com/..." />
-                    </div>
+
                     <button @click="createDeck" class="btn-submit-magic" :disabled="isSubmitting">
                         {{ isSubmitting ? 'REGISTRANDO...' : 'REGISTRAR MAZO' }}
                     </button>
@@ -345,7 +432,7 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 </template>
 
 <style scoped>
-/* Los estilos se mantienen igual que en el código anterior */
+/* --- BASE & UTILS --- */
 .profile-view-root {
     min-height: 100vh;
     color: white;
@@ -359,6 +446,7 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     padding: 20px;
 }
 
+/* --- HEADER --- */
 .top-bar {
     display: flex;
     justify-content: space-between;
@@ -381,7 +469,6 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.75rem;
-    font-weight: 700;
 }
 
 .hero-section {
@@ -391,21 +478,67 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     margin-bottom: 40px;
 }
 
+.avatar-wrapper {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    cursor: pointer;
+}
+
+.avatar-image-container,
+.avatar-circle {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid #3b82f6;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1e293b;
+}
+
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-circle {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    font-size: 2.5rem;
+    font-weight: 900;
+}
+
+.edit-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: 0.3s;
+    font-size: 0.6rem;
+    font-weight: 900;
+}
+
+.avatar-wrapper:hover .edit-overlay {
+    opacity: 1;
+}
+
 .username-title {
-    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-size: clamp(1.8rem, 5vw, 3rem);
     font-weight: 900;
     margin: 0;
-    background: linear-gradient(to right, #fff, #94a3b8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
 }
 
 .rank-subtitle {
     color: #60a5fa;
-    font-weight: bold;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    font-weight: 800;
 }
 
 .quick-stats-row {
@@ -423,7 +556,7 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
 .q-num {
     display: block;
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 900;
     color: #3b82f6;
 }
@@ -435,6 +568,7 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     font-weight: 800;
 }
 
+/* --- MAZOS GRID --- */
 .decks-layout-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -445,11 +579,11 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 50px 0 25px;
+    margin: 40px 0 20px;
 }
 
 .section-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -460,15 +594,21 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 .add-deck-btn {
     background: #3b82f6;
     color: white;
-    padding: 10px 20px;
+    padding: 10px 18px;
     border-radius: 10px;
     font-weight: 900;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     border: none;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+    transition: 0.2s;
 }
 
+.add-deck-btn:hover {
+    background: #2563eb;
+    transform: scale(1.05);
+}
+
+/* --- HISTORIAL --- */
 .history-list {
     background: rgba(30, 41, 59, 0.4);
     border-radius: 20px;
@@ -478,22 +618,22 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
 .history-item {
     display: grid;
-    grid-template-columns: 85px 1fr auto;
+    grid-template-columns: 80px 1fr auto;
     align-items: center;
-    padding: 18px 20px;
+    padding: 15px 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .h-date {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #64748b;
-    font-weight: 700;
 }
 
 .h-deck {
     display: block;
     font-weight: 700;
     color: #f1f5f9;
+    font-size: 0.9rem;
 }
 
 .h-format {
@@ -504,12 +644,10 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 }
 
 .h-result {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 900;
-    padding: 6px 12px;
-    border-radius: 8px;
-    min-width: 90px;
-    text-align: center;
+    padding: 5px 10px;
+    border-radius: 6px;
 }
 
 .win {
@@ -522,72 +660,224 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     color: #f87171;
 }
 
+/* --- MODAL GENERAL --- */
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(12px);
+    background: rgba(2, 6, 23, 0.9);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
+    padding: 20px;
 }
 
 .glass-modal {
-    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+    background: #0f172a;
     padding: 30px;
     border-radius: 28px;
-    width: 90%;
-    max-width: 420px;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    position: relative;
-}
-
-.header-indicator {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: #3b82f6;
-    box-shadow: 0 0 10px #3b82f6;
-}
-
-.header-indicator.stats {
-    background: #a855f7;
-    box-shadow: 0 0 10px #a855f7;
+    width: 100%;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 25px;
+    position: relative;
 }
 
-.modal-header h3 {
-    font-size: 0.9rem;
-    font-weight: 900;
-    letter-spacing: 1px;
-    margin: 0;
+.close-btn-styled {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.close-btn-styled:hover {
+    color: white;
+}
+
+/* --- MODAL AÑADIR MAZO (NUEVO) --- */
+.add-deck-modal {
+    max-width: 500px;
+}
+
+.grid-2-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
 }
 
 .magic-input {
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 14px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    padding: 12px 16px;
     border-radius: 12px;
     color: white;
     width: 100%;
-    margin-bottom: 20px;
-    font-family: inherit;
+    font-size: 0.9rem;
     transition: 0.3s;
+    margin-bottom: 15px;
 }
 
 .magic-input:focus {
     border-color: #3b82f6;
-    background: rgba(15, 23, 42, 0.9);
     outline: none;
+    background: #243347;
+}
+
+.gold-border {
+    border-color: #ca8a04 !important;
+}
+
+.blue-border {
+    border-color: #2563eb !important;
+}
+
+.color-picker-mini {
+    display: flex;
+    gap: 4px;
+    background: #1e293b;
+    padding: 5px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+}
+
+.color-btn {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.color-btn.active {
+    background: #3b82f6;
+    border-color: #60a5fa;
+    transform: scale(1.1);
+}
+
+/* --- MODAL ESTADÍSTICAS (NUEVO) --- */
+.stats-modal-large {
+    max-width: 450px;
+}
+
+.header-titles h3 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 900;
+}
+
+.deck-format-tag {
+    font-size: 0.6rem;
+    background: #3b82f6;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.main-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.metric-card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 20px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.m-val {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #a855f7;
+}
+
+.m-lab {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.rival-tracking h4 {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+.rival-row {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+}
+
+.nemesis {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.victim {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.r-tag {
+    font-size: 0.55rem;
+    font-weight: 900;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+.nemesis .r-tag {
+    background: #ef4444;
+}
+
+.victim .r-tag {
+    background: #10b981;
+}
+
+.r-name {
+    font-weight: 700;
+    flex: 1;
+}
+
+.r-score {
+    font-size: 0.75rem;
+    color: #94a3b8;
 }
 
 .btn-submit-magic {
@@ -599,138 +889,16 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     font-weight: 900;
     border: none;
     cursor: pointer;
-    letter-spacing: 1px;
-}
-
-.close-btn-styled {
-    background: none;
-    border: none;
-    color: #64748b;
-    cursor: pointer;
-    font-size: 1.2rem;
-}
-
-.stat-main-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.stat-box {
-    background: rgba(15, 23, 42, 0.5);
-    padding: 20px;
-    border-radius: 18px;
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.rival-card {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 15px;
-    border-radius: 16px;
-    background: rgba(15, 23, 42, 0.4);
-    border-left: 4px solid #334155;
-    margin-bottom: 10px;
-}
-
-.rival-card.nemesis {
-    border-left-color: #ef4444;
-}
-
-.rival-card.victim {
-    border-left-color: #10b981;
-}
-
-.r-info {
-    flex: 1;
-}
-
-.r-name {
-    display: block;
-    font-weight: 800;
-}
-
-.r-title {
-    font-size: 0.6rem;
-    color: #64748b;
-    font-weight: 800;
-}
-
-.r-count {
-    font-weight: 900;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-size: 0.8rem;
-}
-
-.avatar-wrapper {
-    position: relative;
-    width: 120px;
-    height: 120px;
-    cursor: pointer;
-}
-
-.avatar-image-container {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid #3b82f6;
-    position: relative;
-    z-index: 2;
-}
-
-.avatar-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.avatar-circle {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    font-weight: 900;
-}
-
-.avatar-glow {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 140%;
-    height: 140%;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
-}
-
-.edit-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
     transition: 0.3s;
-    z-index: 5;
-    font-size: 0.65rem;
-    font-weight: 900;
+    margin-top: 10px;
 }
 
-.avatar-wrapper:hover .edit-overlay {
-    opacity: 1;
+.btn-submit-magic:hover {
+    background: #2563eb;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
 }
 
+/* Animaciones */
 .fade-in-up {
     animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -738,38 +906,12 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(20px) scale(0.95);
+        transform: translateY(20px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-.loading-overlay {
-    position: fixed;
-    inset: 0;
-    background: #0f172a;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(59, 130, 246, 0.1);
-    border-left-color: #3b82f6;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
+        transform: translateY(0);
     }
 }
 </style>

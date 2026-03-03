@@ -10,7 +10,7 @@ const router = useRouter()
 // --- ESTADOS ---
 const profile = ref(null)
 const decks = ref([])
-const history = ref([]) // Añadido historial
+const history = ref([])
 const loading = ref(true)
 const showDeckStats = ref(false)
 const selectedDeckStats = ref(null)
@@ -68,7 +68,7 @@ onMounted(async () => {
     }
 })
 
-// Lógica de análisis de mazo (Copiada de tu perfil para consistencia)
+// Lógica de análisis de mazo (Mejorada y Profesional)
 const openStats = async (deck) => {
     const deckNameLower = deck.nombre_personalizado.toLowerCase();
     const deckMatches = history.value.filter(h =>
@@ -76,7 +76,7 @@ const openStats = async (deck) => {
     );
 
     if (deckMatches.length === 0) {
-        selectedDeckStats.value = { name: deck.nombre_personalizado, empty: true };
+        selectedDeckStats.value = { ...deck, empty: true };
         showDeckStats.value = true;
         return;
     }
@@ -84,7 +84,6 @@ const openStats = async (deck) => {
     const wins = deckMatches.filter(m => m.is_winner).length;
     const matchIds = deckMatches.map(m => m.match_id);
 
-    // Buscamos oponentes en esas partidas
     const { data: opponents } = await supabase
         .from('match_participants')
         .select('player_name_manual, is_winner, match_id')
@@ -108,7 +107,7 @@ const openStats = async (deck) => {
     const getTop = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1])[0] || [null, 0];
 
     selectedDeckStats.value = {
-        name: deck.nombre_personalizado,
+        ...deck,
         total: deckMatches.length,
         winRate: ((wins / deckMatches.length) * 100).toFixed(1),
         nemesis: getTop(nemesisMap),
@@ -133,7 +132,7 @@ const goBack = () => router.back()
             <header class="profile-main-header">
                 <nav class="top-bar">
                     <button @click="goBack" class="back-btn">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
                             stroke-width="3">
                             <path d="M15 18l-6-6 6-6" />
                         </svg>
@@ -171,7 +170,7 @@ const goBack = () => router.back()
                 <div class="decks-layout-grid">
                     <DeckCard v-for="deck in decks" :key="deck.id" :deck="deck" @click="openDecklist(deck.decklist_url)"
                         @show-stats="openStats(deck)" />
-                    <div v-if="decks.length === 0" class="empty-decks">Este Planeswalker aún no tiene mazos.</div>
+                    <div v-if="decks.length === 0" class="empty-state-text">Este Planeswalker aún no tiene mazos.</div>
                 </div>
             </section>
 
@@ -193,36 +192,57 @@ const goBack = () => router.back()
         </div>
 
         <div v-if="showDeckStats" class="modal-overlay" @click.self="showDeckStats = false">
-            <div class="modal-content glass-modal stats-modal fade-in-up">
+            <div class="modal-content glass-modal stats-modal-large fade-in-up">
                 <div class="modal-header">
                     <div class="header-indicator stats"></div>
-                    <h3>ANÁLISIS: {{ selectedDeckStats.name }}</h3>
+                    <div class="header-titles">
+                        <span class="deck-format-tag">{{ selectedDeckStats.formato }}</span>
+                        <h3>{{ selectedDeckStats.nombre_personalizado || selectedDeckStats.name }}</h3>
+                    </div>
                     <button class="close-btn-styled" @click="showDeckStats = false">✕</button>
                 </div>
 
                 <div v-if="selectedDeckStats.empty" class="empty-state-stats">
-                    <p>Sin registros de **partida** para este mazo.</p>
+                    <div class="no-data-icon">📜</div>
+                    <p>No hay registros de partida para este mazo.</p>
                 </div>
 
-                <div v-else class="deck-stats-detail">
-                    <div class="stat-main-grid">
-                        <div class="stat-box"><span class="s-val">{{ selectedDeckStats.winRate }}%</span><span
-                                class="s-lab">Win Rate</span></div>
-                        <div class="stat-box"><span class="s-val">{{ selectedDeckStats.total }}</span><span
-                                class="s-lab">Partidas</span></div>
-                    </div>
-                    <div class="rivals-section">
-                        <div class="rival-card nemesis">
-                            <div class="r-icon">💀</div>
-                            <div class="r-info"><span class="r-title">NÉMESIS</span><span class="r-name">{{
-        selectedDeckStats.nemesis[0] || '---' }}</span></div>
-                            <span class="r-count">{{ selectedDeckStats.nemesis[1] }}</span>
+                <div v-else class="stats-grid-container">
+                    <div class="main-metrics">
+                        <div class="metric-card">
+                            <span class="m-val">{{ selectedDeckStats.winRate }}%</span>
+                            <span class="m-lab">Efectividad</span>
                         </div>
-                        <div class="rival-card victim">
-                            <div class="r-icon">⚔️</div>
-                            <div class="r-info"><span class="r-title">VÍCTIMA</span><span class="r-name">{{
-        selectedDeckStats.victim[0] || '---' }}</span></div>
-                            <span class="r-count">{{ selectedDeckStats.victim[1] }}</span>
+                        <div class="metric-card">
+                            <span class="m-val">{{ selectedDeckStats.total }}</span>
+                            <span class="m-lab">Partidas</span>
+                        </div>
+                    </div>
+
+                    <div class="rival-tracking">
+                        <h4>Historial contra Rivales</h4>
+                        <div class="rival-row nemesis">
+                            <span class="r-tag">NÉMESIS</span>
+                            <span class="r-name">{{ selectedDeckStats.nemesis[0] || '---' }}</span>
+                            <span class="r-score">{{ selectedDeckStats.nemesis[1] }} derrotas</span>
+                        </div>
+                        <div class="rival-row victim">
+                            <span class="r-tag">VÍCTIMA</span>
+                            <span class="r-name">{{ selectedDeckStats.victim[0] || '---' }}</span>
+                            <span class="r-score">{{ selectedDeckStats.victim[1] }} victorias</span>
+                        </div>
+                    </div>
+
+                    <div class="deck-info-footer"
+                        v-if="selectedDeckStats.commander_name || selectedDeckStats.archetype">
+                        <div v-if="selectedDeckStats.commander_name" class="footer-item">
+                            <span class="label">Comandante:</span> {{ selectedDeckStats.commander_name }}
+                        </div>
+                        <div v-if="selectedDeckStats.archetype" class="footer-item">
+                            <span class="label">Arquetipo:</span> {{ selectedDeckStats.archetype }}
+                        </div>
+                        <div v-if="selectedDeckStats.color_identity" class="footer-item colors">
+                            <span class="label">Identidad:</span> {{ selectedDeckStats.color_identity }}
                         </div>
                     </div>
                 </div>
@@ -231,13 +251,16 @@ const goBack = () => router.back()
     </div>
 
     <div v-else class="error-state">
-        <p>No se ha podido encontrar el rastro de este usuario.</p>
-        <button @click="goBack" class="btn-submit-magic">Volver</button>
+        <div class="error-content">
+            <h2>⚠️ 404</h2>
+            <p>No se ha podido encontrar el rastro de este usuario en el Multiverso.</p>
+            <button @click="goBack" class="btn-submit-magic">VOLVER</button>
+        </div>
     </div>
 </template>
 
 <style scoped>
-/* Estilos heredados y consistentes */
+/* Estilos Base Heredados del Perfil Personal */
 .profile-view-root {
     min-height: 100vh;
     color: white;
@@ -250,6 +273,7 @@ const goBack = () => router.back()
     padding: 20px;
 }
 
+/* Barra Superior */
 .top-bar {
     display: flex;
     justify-content: space-between;
@@ -272,6 +296,11 @@ const goBack = () => router.back()
     transition: 0.3s;
 }
 
+.back-btn:hover {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: #60a5fa;
+}
+
 .brand {
     font-weight: 900;
     color: #3b82f6;
@@ -279,20 +308,33 @@ const goBack = () => router.back()
     font-size: 0.8rem;
 }
 
+/* Hero Section */
+.hero-section {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    margin-bottom: 40px;
+}
+
 .avatar-wrapper.readonly {
-    width: 120px;
-    height: 120px;
+    width: 110px;
+    height: 110px;
     position: relative;
 }
 
-.avatar-image-container {
+.avatar-image-container,
+.avatar-circle {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    overflow: hidden;
     border: 3px solid #3b82f6;
-    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1e293b;
     z-index: 2;
+    position: relative;
 }
 
 .avatar-image {
@@ -302,14 +344,8 @@ const goBack = () => router.back()
 }
 
 .avatar-circle {
-    width: 100%;
-    height: 100%;
     background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
+    font-size: 2.5rem;
     font-weight: 900;
 }
 
@@ -320,27 +356,24 @@ const goBack = () => router.back()
     transform: translate(-50%, -50%);
     width: 130%;
     height: 130%;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%);
-    filter: blur(15px);
-    z-index: 1;
-}
-
-.hero-section {
-    display: flex;
-    align-items: center;
-    gap: 30px;
-    margin-bottom: 40px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
 }
 
 .username-title {
-    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-size: clamp(2rem, 5vw, 3rem);
     font-weight: 900;
     margin: 0;
-    background: linear-gradient(to right, #fff, #94a3b8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
 }
 
+.rank-subtitle {
+    color: #60a5fa;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 800;
+    margin-top: 5px;
+}
+
+/* Stats Rápidas */
 .quick-stats-row {
     display: flex;
     gap: 15px;
@@ -356,7 +389,7 @@ const goBack = () => router.back()
 
 .q-num {
     display: block;
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 900;
     color: #3b82f6;
 }
@@ -368,20 +401,22 @@ const goBack = () => router.back()
     font-weight: 800;
 }
 
-.section-title {
-    font-size: 1.1rem;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin: 40px 0 20px;
-}
-
+/* Grid de Mazos */
 .decks-layout-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
 }
 
+.section-title {
+    font-size: 1rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 40px 0 20px;
+}
+
+/* Historial */
 .history-list {
     background: rgba(30, 41, 59, 0.4);
     border-radius: 20px;
@@ -398,7 +433,7 @@ const goBack = () => router.back()
 }
 
 .h-date {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #64748b;
     font-weight: 700;
 }
@@ -407,14 +442,21 @@ const goBack = () => router.back()
     font-weight: 700;
     color: #f1f5f9;
     display: block;
+    font-size: 0.9rem;
+}
+
+.h-format {
+    font-size: 0.6rem;
+    color: #3b82f6;
+    text-transform: uppercase;
+    font-weight: 900;
 }
 
 .h-result {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 900;
     padding: 6px 12px;
     border-radius: 8px;
-    min-width: 90px;
     text-align: center;
 }
 
@@ -428,73 +470,192 @@ const goBack = () => router.back()
     color: #f87171;
 }
 
-/* Reutilizando estilos de Modales del perfil anterior */
+/* MODALES MEJORADOS */
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(12px);
+    background: rgba(2, 6, 23, 0.9);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
+    padding: 20px;
 }
 
 .glass-modal {
-    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+    background: #0f172a;
     padding: 30px;
     border-radius: 28px;
-    width: 90%;
-    max-width: 420px;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    position: relative;
+    width: 100%;
+    border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
-.stat-main-grid {
+.stats-modal-large {
+    max-width: 450px;
+}
+
+.header-indicator.stats {
+    height: 4px;
+    background: #a855f7;
+    border-radius: 0 0 4px 4px;
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 25px;
+}
+
+.deck-format-tag {
+    font-size: 0.55rem;
+    background: #3b82f6;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.main-metrics {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
-.stat-box {
-    background: rgba(15, 23, 42, 0.5);
+.metric-card {
+    background: #1e293b;
     padding: 20px;
-    border-radius: 18px;
+    border-radius: 20px;
     text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.rival-card {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 15px;
-    border-radius: 16px;
-    background: rgba(15, 23, 42, 0.4);
-    border-left: 4px solid #334155;
-    margin-bottom: 10px;
-}
-
-.rival-card.nemesis {
-    border-left-color: #ef4444;
-}
-
-.rival-card.victim {
-    border-left-color: #10b981;
-}
-
-.s-val {
+.m-val {
     display: block;
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: 900;
-    color: #3b82f6;
+    color: #a855f7;
 }
 
-.s-lab {
+.m-lab {
     font-size: 0.6rem;
+    color: #94a3b8;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.rival-tracking h4 {
+    font-size: 0.65rem;
     color: #64748b;
     text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+.rival-row {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+}
+
+.nemesis {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.victim {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.r-tag {
+    font-size: 0.55rem;
+    font-weight: 900;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+.nemesis .r-tag {
+    background: #ef4444;
+}
+
+.victim .r-tag {
+    background: #10b981;
+}
+
+.r-name {
+    font-weight: 700;
+    flex: 1;
+}
+
+.r-score {
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+
+.deck-info-footer {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.footer-item {
+    margin-bottom: 5px;
+}
+
+.footer-item .label {
     font-weight: 800;
+    color: #3b82f6;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    margin-right: 5px;
+}
+
+/* Error State */
+.error-state {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.btn-submit-magic {
+    background: #3b82f6;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+/* Animaciones */
+.fade-in-up {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>
