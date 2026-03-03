@@ -18,15 +18,15 @@ const showDeckStats = ref(false)
 const newAvatarUrl = ref('')
 const selectedDeckStats = ref(null)
 
-// Objeto de mazo expandido
+// Objeto de mazo corregido según tu DB
 const newDeck = reactive({
     nombre_personalizado: '',
     formato: 'commander',
     decklist_url: '',
     image_url: '',
-    commander_name: '', // Específico Commander
-    pauper_archetype: '', // Específico Pauper
-    color_identity: [] // Identidad de color
+    comandante_nombre: '', 
+    arquetipo_pauper: '', 
+    color_identity: []
 })
 
 const colorOptions = [
@@ -157,26 +157,21 @@ const createDeck = async () => {
     try {
         const { data: { user } } = await supabase.auth.getUser()
 
-        // Combinamos metadatos según formato
-        const meta = {
-            commander: newDeck.formato === 'commander' ? newDeck.commander_name : null,
-            archetype: newDeck.formato === 'pauper' ? newDeck.pauper_archetype : null,
-            colors: newDeck.color_identity.join(',')
+        // Lógica condicional para no enviar datos innecesarios
+        const payload = {
+            nombre_personalizado: newDeck.nombre_personalizado,
+            formato: newDeck.formato,
+            decklist_url: newDeck.decklist_url,
+            image_url: newDeck.image_url,
+            user_id: user.id,
+            color_identity: newDeck.color_identity.join(','),
+            comandante_nombre: newDeck.formato === 'commander' ? newDeck.comandante_nombre : null,
+            arquetipo_pauper: newDeck.formato === 'pauper' ? newDeck.arquetipo_pauper : null
         }
 
         const { data, error } = await supabase
             .from('decks')
-            .insert([{
-                nombre_personalizado: newDeck.nombre_personalizado,
-                formato: newDeck.formato,
-                decklist_url: newDeck.decklist_url,
-                image_url: newDeck.image_url,
-                user_id: user.id,
-                // Asumiendo que añades estas columnas a tu DB:
-                commander_name: meta.commander,
-                archetype: meta.archetype,
-                color_identity: meta.colors
-            }])
+            .insert([payload])
             .select()
 
         if (error) throw error
@@ -196,8 +191,8 @@ const resetForm = () => {
     newDeck.decklist_url = ''
     newDeck.image_url = ''
     newDeck.formato = 'commander'
-    newDeck.commander_name = ''
-    newDeck.pauper_archetype = ''
+    newDeck.comandante_nombre = ''
+    newDeck.arquetipo_pauper = ''
     newDeck.color_identity = []
 }
 
@@ -312,37 +307,45 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
                 <div v-if="selectedDeckStats.empty" class="empty-state-stats">
                     <div class="no-data-icon">📜</div>
-                    <p>No hay registros de este mazo.</p>
+                    <p>No hay registros de **partida** para este mazo.</p>
                 </div>
 
                 <div v-else class="stats-grid-container">
                     <div class="main-metrics">
                         <div class="metric-card">
                             <span class="m-val">{{ selectedDeckStats.winRate }}%</span>
-                            <span class="m-lab">Efectividad Total</span>
+                            <span class="m-lab">Efectividad</span>
                         </div>
                         <div class="metric-card">
                             <span class="m-val">{{ selectedDeckStats.total }}</span>
-                            <span class="m-lab">Partidas Jugadas</span>
+                            <span class="m-lab">Partidas</span>
                         </div>
                     </div>
 
                     <div class="rival-tracking">
-                        <h4>Registro de Rivales</h4>
+                        <h4>Historial contra Rivales</h4>
                         <div class="rival-row nemesis">
                             <span class="r-tag">NÉMESIS</span>
-                            <span class="r-name">{{ selectedDeckStats.nemesis[0] }}</span>
+                            <span class="r-name">{{ selectedDeckStats.nemesis[0] || '---' }}</span>
                             <span class="r-score">{{ selectedDeckStats.nemesis[1] }} derrotas</span>
                         </div>
                         <div class="rival-row victim">
                             <span class="r-tag">VÍCTIMA</span>
-                            <span class="r-name">{{ selectedDeckStats.victim[0] }}</span>
+                            <span class="r-name">{{ selectedDeckStats.victim[0] || '---' }}</span>
                             <span class="r-score">{{ selectedDeckStats.victim[1] }} victorias</span>
                         </div>
                     </div>
 
-                    <div v-if="selectedDeckStats.commander_name" class="deck-info-footer">
-                        <strong>Comandante:</strong> {{ selectedDeckStats.commander_name }}
+                    <div class="deck-info-footer">
+                        <div v-if="selectedDeckStats.formato.toLowerCase() === 'commander' && selectedDeckStats.comandante_nombre" class="footer-item">
+                            <span class="label">Comandante:</span> {{ selectedDeckStats.comandante_nombre }}
+                        </div>
+                        <div v-if="selectedDeckStats.formato.toLowerCase() === 'pauper' && selectedDeckStats.arquetipo_pauper" class="footer-item">
+                            <span class="label">Arquetipo:</span> {{ selectedDeckStats.arquetipo_pauper }}
+                        </div>
+                        <div v-if="selectedDeckStats.color_identity" class="footer-item">
+                            <span class="label">Identidad:</span> {{ selectedDeckStats.color_identity }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -384,13 +387,13 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
                         <div v-if="newDeck.formato === 'commander'" class="input-group special-field fade-in">
                             <label>Nombre del Comandante</label>
-                            <input v-model="newDeck.commander_name" class="magic-input gold-border"
+                            <input v-model="newDeck.comandante_nombre" class="magic-input gold-border"
                                 placeholder="Ej: Atraxa, Praetors' Voice" />
                         </div>
 
                         <div v-if="newDeck.formato === 'pauper'" class="input-group special-field fade-in">
                             <label>Arquetipo</label>
-                            <input v-model="newDeck.pauper_archetype" class="magic-input blue-border"
+                            <input v-model="newDeck.arquetipo_pauper" class="magic-input blue-border"
                                 placeholder="Ej: Burn, Mono Blue Delver..." />
                         </div>
 
