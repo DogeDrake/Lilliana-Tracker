@@ -6,7 +6,7 @@
             <header class="auth-header">
                 <div class="logo-orb">💀</div>
                 <h1 class="main-title">Lilliana<span>Tracker</span></h1>
-                <p class="subtitle">Identifícate, Duelista</p>
+                <p class="subtitle">Identifícate, Planeswalker</p>
             </header>
 
             <form @submit.prevent="handleLogin" class="auth-form">

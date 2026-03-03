@@ -40,10 +40,10 @@
                 </div>
             </section>
 
-            <section class="grimorio-section">
+            <section class="Mazo-section">
                 <div class="section-title">
                     <span class="icon">📖</span>
-                    <h3>Grimorio de Mazos Activos</h3>
+                    <h3>Mazos Activos</h3>
                 </div>
 
                 <div class="decks-grid">
@@ -60,7 +60,7 @@
                 </div>
 
                 <div v-if="decks.length === 0" class="empty-state">
-                    Este duelista aún no ha revelado sus mazos...
+                    Este Planeswalker aún no ha revelado sus mazos...
                 </div>
             </section>
         </div>

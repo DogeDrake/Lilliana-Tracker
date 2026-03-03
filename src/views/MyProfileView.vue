@@ -20,7 +20,7 @@ const newDeck = reactive({
     comandante_nombre: '',
     arquetipo_pauper: '',
     image_url: '',
-    decklist_url: '', // Campo para la URL
+    decklist_url: '',
     colors: []
 })
 
@@ -34,41 +34,52 @@ onMounted(async () => {
             return
         }
 
-        const userId = user.id
-
+        // 1. Cargamos perfil y mazos
         const [profileRes, decksRes] = await Promise.all([
-            supabase.from('profiles').select('*').eq('id', userId).single(),
-            supabase.from('decks').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+            supabase.from('profiles').select('*').eq('id', user.id).single(),
+            supabase.from('decks').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
         ])
 
         if (profileRes.error) throw profileRes.error
 
         profile.value = profileRes.data
         decks.value = decksRes.data || []
-        await fetchStats(userId)
+
+        // 2. Cargamos las estadísticas con la nueva lógica de búsqueda
+        await fetchStats(user.id, profile.value.username)
 
     } catch (err) {
-        console.error("Error crítico:", err.message)
+        console.error("Error crítico en el perfil:", err.message)
     } finally {
         loading.value = false
     }
 })
 
-const fetchStats = async (userId) => {
+// FUNCIÓN CORREGIDA: Ahora busca por ID o por nombre (DGDRK)
+const fetchStats = async (userId, username) => {
     try {
         const { data, error } = await supabase
             .from('match_participants')
-            .select('is_winner')
-            .eq('user_id', userId)
+            .select('is_winner, player_name_manual')
+            .or(`user_id.eq.${userId},player_name_manual.ilike.${username}`)
 
         if (error) throw error
+
         if (data && data.length > 0) {
+            const total = data.length
             const wins = data.filter(p => p.is_winner === true).length
-            stats.totalMatches = data.length
-            stats.winRate = ((wins / data.length) * 100).toFixed(1)
+
+            stats.totalMatches = total
+            // Calculamos el winrate con un decimal para mayor precisión
+            stats.winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : 0
+
+            console.log(`📊 Stats de ${username}: ${wins}/${total} victorias.`);
+        } else {
+            stats.totalMatches = 0
+            stats.winRate = 0
         }
     } catch (e) {
-        console.warn("Error stats:", e.message)
+        console.warn("Error al calcular estadísticas del perfil:", e.message)
     }
 }
 
@@ -87,27 +98,28 @@ const addNewDeck = async () => {
                 arquetipo_pauper: newDeck.formato === 'pauper' ? newDeck.arquetipo_pauper : null,
                 color_identity: colorString,
                 image_url: newDeck.image_url || null,
-                decklist_url: newDeck.decklist_url || null, // Se sube a la BD
+                decklist_url: newDeck.decklist_url || null,
                 is_active: true
             }
         ])
 
         if (error) throw error
 
-        // Reset y recarga
         Object.assign(newDeck, { nombre_personalizado: '', comandante_nombre: '', arquetipo_pauper: '', image_url: '', decklist_url: '', colors: [] })
         showAddDeck.value = false
+
         const { data: d } = await supabase.from('decks').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
         decks.value = d || []
 
     } catch (err) {
-        alert('Error: ' + err.message)
+        alert('Error al forjar el mazo: ' + err.message)
     } finally {
         isSubmitting.value = false
     }
 }
 
 const openDecklist = (url) => { if (url) window.open(url, '_blank') }
+
 async function handleLogout() {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -144,7 +156,7 @@ async function handleLogout() {
                 <div class="quick-stats-row">
                     <div class="q-stat">
                         <span class="q-num">{{ decks.length }}</span>
-                        <span class="q-label">Grimorios</span>
+                        <span class="q-label">Mazos</span>
                     </div>
                     <div class="q-stat">
                         <span class="q-num">{{ stats.totalMatches }}</span>
@@ -168,7 +180,7 @@ async function handleLogout() {
                         class="clickable-deck" />
 
                     <div v-if="decks.length === 0" class="empty-state-card" @click="showAddDeck = true">
-                        <p>Tu grimorio está vacío. Pulsa para forjar un mazo.</p>
+                        <p>Tu Mazo está vacío. Pulsa para forjar un mazo.</p>
                     </div>
                 </div>
             </main>
@@ -189,7 +201,7 @@ async function handleLogout() {
                     </div>
 
                     <div class="form-group">
-                        <label>URL del Grimorio (Decklist)</label>
+                        <label>URL del Mazo (Decklist)</label>
                         <input v-model="newDeck.decklist_url" type="url" placeholder="https://moxfield.com/..." />
                     </div>
 
@@ -230,7 +242,7 @@ async function handleLogout() {
                     </div>
 
                     <button type="submit" class="btn-submit-magic" :disabled="isSubmitting">
-                        {{ isSubmitting ? 'Sellando Contrato...' : 'Añadir al Grimorio' }}
+                        {{ isSubmitting ? 'Sellando Contrato...' : 'Añadir al Mazo' }}
                     </button>
                 </form>
             </div>

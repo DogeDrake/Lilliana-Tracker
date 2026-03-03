@@ -30,7 +30,7 @@ const seleccionar = (id, nombre, formato) => {
                 <span class="badge">Lilliana Tracker v2.0</span>
             </div>
             <h1 class="main-title">Panel de Control</h1>
-            <p class="subtitle">Selecciona un duelista para ver su grimorio</p>
+            <p class="subtitle">Selecciona un Planeswalker para ver su Mazo</p>
         </header>
 
         <div class="grid-jugadores">

@@ -6,7 +6,7 @@
             <header class="auth-header">
                 <div class="logo-orb emerald">✨</div>
                 <h1 class="main-title">Nueva <span>Cuenta</span></h1>
-                <p class="subtitle">Únete a la hermandad de duelistas</p>
+                <p class="subtitle">Únete a la hermandad de Planeswalkers</p>
             </header>
 
             <form @submit.prevent="handleRegister" class="auth-form">

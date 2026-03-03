@@ -1,7 +1,7 @@
 import { supabase } from "../supabaseClient";
 
 export const authService = {
-  // REGISTRO DE NUEVOS DUELISTAS
+  // REGISTRO DE NUEVOS PlaneswalkerS
   async signUp(email, password, username, displayName) {
     const { data, error } = await supabase.auth.signUp({
       email,

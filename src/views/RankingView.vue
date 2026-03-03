@@ -34,7 +34,7 @@
                     <div class="lethality-meter">
                         <div class="meter-content">
                             <span class="meter-value">{{ player.win_rate }}%</span>
-                            <span class="meter-label">Eficiencia</span>
+                            <span class="meter-label">Victorias</span>
                         </div>
                         <div class="meter-bar-bg">
                             <div class="meter-bar-fill"

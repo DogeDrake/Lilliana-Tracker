@@ -8,7 +8,7 @@
             </div>
         </header>
 
-        <div v-if="loading" class="status">Buscando duelistas...</div>
+        <div v-if="loading" class="status">Buscando Planeswalkers...</div>
 
         <div class="players-grid">
             <router-link :to="'/perfil/' + player.id" v-for="player in filteredPlayers" :key="player.id"
@@ -18,7 +18,7 @@
                 </div>
                 <div class="player-info">
                     <h3>{{ player.username }}</h3>
-                    <p>{{ player.display_name || 'Duelista estándar' }}</p>
+                    <p>{{ player.display_name || 'Planeswalker estándar' }}</p>
                 </div>
                 <span class="chevron">→</span>
             </router-link>
