@@ -39,6 +39,13 @@ const routes = [
     meta: { requiresAuth: true, showNav: true },
   },
   {
+    path: "/partida/:id",
+    name: "PartidaDetalles",
+    component: () => import("../views/PartidaDetalles.vue"),
+    props: true, // Esto permite recibir el ID como prop
+    meta: { requiresAuth: true, showNav: true },
+  },
+  {
     path: "/jugadores",
     name: "Jugadores",
     component: () => import("../views/PlayersView.vue"),

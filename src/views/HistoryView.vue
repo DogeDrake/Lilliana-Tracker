@@ -21,13 +21,17 @@
         </div>
 
         <div v-else class="grid-historial">
-            <div v-for="(match, index) in matches" :key="match.id" class="player-card"
-                :style="{ animationDelay: (index * 0.1) + 's' }">
-
+            <router-link v-for="(match, index) in matches" :key="match.id" :to="`/partida/${match.id}`"
+                class="match-link-container" :style="{ animationDelay: (index * 0.05) + 's' }">
                 <div class="card-inner match-card-glass">
                     <div class="match-card-top">
-                        <span :class="['format-tag', match.formato]">{{ match.formato }}</span>
-                        <span class="date-label">{{ formatDate(match.fecha_partida) }}</span>
+                        <div class="format-group">
+                            <span :class="['format-tag', match.formato?.toLowerCase()]">{{ match.formato }}</span>
+                        </div>
+                        <div class="date-group">
+                            <span class="date-label">{{ formatDate(match.fecha_partida) }}</span>
+                            <span class="view-detail-icon">→</span>
+                        </div>
                     </div>
 
                     <div class="participants-grid">
@@ -35,11 +39,12 @@
                             :class="{ 'winner-item': p.is_winner }">
 
                             <div class="p-info">
-                                <span class="p-name">{{ p.profiles?.username || p.player_name_manual }}</span>
+                                <span class="p-name">
+                                    {{ p.profiles?.username || p.player_name_manual }}
+                                    <span v-if="p.is_winner" class="winner-crown">🏆</span>
+                                </span>
                                 <span class="p-deck">{{ p.decks?.nombre_personalizado || p.deck_name_manual }}</span>
                             </div>
-
-                            <div v-if="p.is_winner" class="winner-icon">🏆</div>
                         </div>
                     </div>
 
@@ -48,7 +53,7 @@
                         <p>"{{ match.notas_globales }}"</p>
                     </div>
                 </div>
-            </div>
+            </router-link>
         </div>
     </div>
 </template>
@@ -91,27 +96,65 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Reutilizamos las bases del estilo v2.0 que te gusta */
-
 .grid-historial {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
     padding-bottom: 40px;
+}
+
+/* Contenedor del Link */
+.match-link-container {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: transform 0.2s ease;
+}
+
+.match-link-container:hover {
+    transform: scale(1.01);
 }
 
 .match-card-glass {
     border-radius: 24px;
     padding: 20px;
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+.match-link-container:hover .match-card-glass {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(59, 130, 246, 0.3);
+    box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.5);
 }
 
 .match-card-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     padding-bottom: 12px;
+}
+
+.date-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.view-detail-icon {
+    color: #3b82f6;
+    font-weight: bold;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
+}
+
+.match-link-container:hover .view-detail-icon {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 /* FORMAT TAGS */
@@ -145,19 +188,15 @@ onMounted(async () => {
 /* PARTICIPANTES */
 .participants-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
 }
 
 .participant-item {
     background: rgba(15, 23, 42, 0.3);
-    padding: 12px;
-    border-radius: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 10px 14px;
+    border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.02);
-    transition: 0.3s;
 }
 
 .participant-item.winner-item {
@@ -174,46 +213,52 @@ onMounted(async () => {
     font-size: 0.85rem;
     font-weight: 800;
     color: #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.winner-crown {
+    font-size: 0.8rem;
+    filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.4));
 }
 
 .p-deck {
     font-size: 0.7rem;
     color: #64748b;
     font-weight: 500;
-}
-
-.winner-icon {
-    font-size: 1rem;
-    filter: drop-shadow(0 0 5px rgba(234, 179, 8, 0.5));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* NOTAS */
 .match-notes {
-    margin-top: 18px;
-    background: rgba(255, 255, 255, 0.02);
-    padding: 12px;
+    margin-top: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px 14px;
     border-radius: 12px;
     display: flex;
-    gap: 10px;
-    align-items: flex-start;
+    gap: 8px;
+    align-items: center;
 }
 
 .notes-icon {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     opacity: 0.5;
 }
 
 .match-notes p {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #94a3b8;
     font-style: italic;
-    line-height: 1.4;
+    margin: 0;
 }
 
 /* LOADING STATE */
 .loading-container {
     text-align: center;
-    padding: 50px;
+    padding: 100px;
 }
 
 .spinner {
@@ -232,7 +277,6 @@ onMounted(async () => {
     }
 }
 
-/* Adaptación para móviles estrechos */
 @media (max-width: 480px) {
     .participants-grid {
         grid-template-columns: 1fr;

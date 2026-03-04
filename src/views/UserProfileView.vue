@@ -151,7 +151,7 @@ const goBack = () => router.back()
                     </div>
                     <div class="hero-text">
                         <h1 class="username-title">{{ profile.username }}</h1>
-                        <p class="rank-subtitle">Planeswalker de Élite</p>
+                        <p class="rank-subtitle">{{ profile.bio }}</p>
                     </div>
                 </div>
 

@@ -1,340 +1,360 @@
-<script setup>
-import { ref, onMounted } from 'vue'
-import { supabase } from '../supabaseClient'
-
-const profile = ref(null)
-const totalMatches = ref(0)
-const winRate = ref(0)
-const recentMatches = ref([])
-const loading = ref(true)
-
-onMounted(async () => {
-    try {
-        loading.value = true;
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: p } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-        profile.value = p;
-        const miNombre = p?.username;
-
-        const { data: participations, error } = await supabase
-            .from('match_participants')
-            .select(`
-                is_winner,
-                deck_name_manual,
-                player_name_manual,
-                user_id,
-                matches!inner (
-                    id, 
-                    fecha_partida, 
-                    formato
-                )
-            `)
-            .or(`user_id.eq.${user.id},player_name_manual.ilike.${miNombre}`)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        if (participations) {
-            const validData = participations.filter(item => item.matches);
-            totalMatches.value = validData.length;
-
-            const wins = validData.filter(item => item.is_winner === true).length;
-            winRate.value = totalMatches.value > 0
-                ? Math.round((wins / totalMatches.value) * 100)
-                : 0;
-
-            recentMatches.value = validData.slice(0, 3).map(item => ({
-                id: item.matches.id,
-                formato: item.matches.formato,
-                fecha_partida: item.matches.fecha_partida,
-                deck_name_manual: item.deck_name_manual,
-                user_won: item.is_winner
-            }));
-        }
-    } catch (err) {
-        console.error("❌ Error:", err.message);
-    } finally {
-        loading.value = false;
-    }
-});
-
-const formatDate = (dateStr) => {
-    if (!dateStr) return '---'
-    return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
-}
-</script>
-
 <template>
-    <div class="app-viewport fade-in">
-        <div class="app-container">
-            <header class="home-header">
-                <span class="badge">Lilliana Tracker v3.0</span>
-                <h1 class="main-title">Lilliana <span>Tracker</span></h1>
-                <p class="welcome-text">
-                    Bienvenido, <span class="highlight-user">{{ profile?.username || 'Planeswalker' }}</span>
-                </p>
-            </header>
-
-            <div class="grid-jugadores">
-
-                <div class="player-card">
-                    <div class="card-inner">
-                        <div class="card-header-box">
-                            <div class="avatar-icon">📊</div>
-                            <div class="header-text">
-                                <h2>Win Rate</h2>
-                                <p class="header-subtitle">Efectividad total</p>
-                            </div>
-                        </div>
-
-                        <div class="stats-glass-card">
-                            <span class="stats-label">HISTORIAL GLOBAL</span>
-                            <div class="winrate-display">
-                                <h3 class="percentage-number">{{ winRate }}%</h3>
-                                <div class="total-games-pill">{{ totalMatches }} Partidas</div>
-                            </div>
-                            <button class="btn-primary" @click="$router.push('/partida/nueva')">
-                                + Nueva Partida
-                            </button>
-                        </div>
-                    </div>
+    <div class="app-container fade-in">
+        <header class="welcome-section">
+            <div class="user-greeting">
+                <div class="greeting-text">
+                    <span class="badge">SISTEMA ACTIVO</span>
+                    <h1 class="main-title">Hola, {{ profile?.username || 'Planeswalker' }}</h1>
+                    <p class="subtitle">Elije que consultaras hoy</p>
                 </div>
-
-                <div class="player-card">
-                    <div class="card-inner">
-                        <div class="card-header-box">
-                            <div class="avatar-icon">📜</div>
-                            <div class="header-text">
-                                <h2>Actividad</h2>
-                                <p class="header-subtitle">Últimas partidas</p>
-                            </div>
-                        </div>
-
-                        <div class="activity-feed">
-                            <div v-if="loading" class="empty-state">Invocando datos...</div>
-                            <div v-else-if="recentMatches.length === 0" class="empty-state">Sin registros aún.</div>
-
-                            <div v-for="match in recentMatches" :key="match.id" class="match-card-item"
-                                :class="match.formato === 'commander' ? 'commander-accent' : 'pauper-accent'">
-
-                                <div class="match-card-header">
-                                    <span class="format-tag">{{ match.formato }}</span>
-                                    <span class="match-date-tag">{{ formatDate(match.fecha_partida) }}</span>
-                                </div>
-
-                                <div class="match-card-body">
-                                    <div class="result-indicator" :class="match.user_won ? 'win' : 'loss'">
-                                        {{ match.user_won ? '🏆 WIN' : '💀 LOSS' }}
-                                    </div>
-                                    <div class="match-deck-name">
-                                        {{ match.deck_name_manual || 'Mazo estándar' }}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="mini-avatar" v-if="profile?.avatar_url">
+                    <img :src="profile.avatar_url" alt="Perfil">
                 </div>
-
             </div>
+        </header>
+
+        <section class="quick-nav-grid">
+            <router-link to="/partida/nueva" class="action-card primary">
+                <div class="action-icon">⚔️</div>
+                <div class="action-info">
+                    <h3>Nueva Partida</h3>
+                    <p>Registrar encuentro</p>
+                </div>
+            </router-link>
+
+            <router-link to="/mi-perfil" class="action-card secondary">
+                <div class="action-icon">🃏</div>
+                <div class="action-info">
+                    <h3>Mis Mazos</h3>
+                    <p>{{ totalDecks }} registrados</p>
+                </div>
+            </router-link>
+        </section>
+
+        <div class="section-divider">
+            <h2>Actividad Reciente</h2>
+            <router-link to="/historial" class="view-all">Ver todo →</router-link>
+        </div>
+
+        <div v-if="loading" class="loading-placeholder">
+            <div class="shimmer-card" v-for="i in 2" :key="i"></div>
+        </div>
+
+        <div v-else-if="matches.length === 0" class="empty-zen-state">
+            <div class="zen-icon">✨</div>
+            <p>El archivo está en blanco. Es hora de tu primera **partida**.</p>
+        </div>
+
+        <div v-else class="recent-list">
+            <router-link v-for="match in matches.slice(0, 3)" :key="match.id" :to="`/partida/${match.id}`"
+                class="mini-match-card clickable-card">
+                <div class="match-status" :class="getMatchResult(match)"></div>
+                <div class="match-details">
+                    <div class="match-meta">
+                        <span class="m-format">{{ match.formato }}</span>
+                        <span class="m-date">{{ formatDate(match.fecha_partida) }}</span>
+                    </div>
+                    <div class="match-players">
+                        <span class="winner-name">{{ getWinnerName(match) }}</span>
+                        <span class="vs">venció en la **partida**</span>
+                    </div>
+                </div>
+                <div class="match-arrow">→</div>
+            </router-link>
         </div>
     </div>
 </template>
 
+<script setup>
+import { ref, onMounted } from 'vue'
+import { supabase } from '@/supabaseClient'
+
+const matches = ref([])
+const profile = ref(null)
+const totalDecks = ref(0)
+const loading = ref(true)
+
+const formatDate = (dateStr) => {
+    return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
+}
+
+const getWinnerName = (match) => {
+    const winner = match.match_participants?.find(p => p.is_winner)
+    return winner ? (winner.profiles?.username || winner.player_name_manual) : 'Alguien'
+}
+
+const getMatchResult = (match) => {
+    const userPart = match.match_participants?.find(p => p.profiles?.username === profile.value?.username)
+    if (!userPart) return 'neutral'
+    return userPart.is_winner ? 'win' : 'loss'
+}
+
+onMounted(async () => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser()
+
+        const [profileRes, decksRes, matchesRes] = await Promise.all([
+            supabase.from('profiles').select('*').eq('id', user.id).single(),
+            supabase.from('decks').select('id', { count: 'exact' }).eq('user_id', user.id),
+            supabase.from('matches').select(`
+                *,
+                match_participants (
+                    *,
+                    profiles (username),
+                    decks (nombre_personalizado)
+                )
+            `).order('fecha_partida', { ascending: false }).limit(3)
+        ])
+
+        profile.value = profileRes.data
+        totalDecks.value = decksRes.count || 0
+        matches.value = matchesRes.data || []
+
+    } catch (err) {
+        console.error('Error Home:', err.message)
+    } finally {
+        loading.value = false
+    }
+})
+</script>
+
 <style scoped>
-/* Evita el scroll lateral y gestiona el espacio del navegador móvil */
-.app-viewport {
-    width: 100%;
-    min-height: 100vh;
-    overflow-x: hidden;
-    background: transparent;
-}
-
 .app-container {
-    width: 100%;
-    max-width: 1100px;
+    padding: 20px;
+    max-width: 600px;
     margin: 0 auto;
-    padding: 30px 15px 120px;
-    /* Padding extra para no chocar con la nav */
-    box-sizing: border-box;
 }
 
-.home-header {
-    text-align: center;
-    margin-bottom: 40px;
+/* --- WELCOME SECTION --- */
+.welcome-section {
+    margin-bottom: 30px;
+    padding-top: 10px;
+}
+
+.user-greeting {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .main-title {
-    font-size: clamp(1.8rem, 8vw, 3rem);
+    font-size: 1.8rem;
     font-weight: 900;
-    margin: 10px 0;
-    color: #fff;
+    margin: 5px 0;
+    letter-spacing: -0.5px;
 }
 
-.main-title span {
-    color: #3b82f6;
-    font-weight: 300;
+.mini-avatar {
+    width: 55px;
+    height: 55px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 2px solid rgba(59, 130, 246, 0.5);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
-.badge {
-    display: inline-block;
-    background: rgba(59, 130, 246, 0.1);
-    color: #60a5fa;
-    padding: 4px 12px;
-    border-radius: 100px;
-    font-size: 0.7rem;
-    border: 1px solid rgba(59, 130, 246, 0.2);
-}
-
-.grid-jugadores {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.card-inner {
-    background: rgba(30, 41, 59, 0.4);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 24px;
-    padding: 25px;
+.mini-avatar img {
+    width: 100%;
     height: 100%;
-    box-sizing: border-box;
+    object-fit: cover;
 }
 
-.card-header-box {
-    display: flex;
-    align-items: center;
+/* --- QUICK NAV --- */
+.quick-nav-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 15px;
-    margin-bottom: 25px;
+    margin-bottom: 35px;
 }
 
-.avatar-icon {
-    font-size: 1.5rem;
-    background: #0f172a;
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 15px;
-}
-
-.stats-glass-card {
-    background: rgba(15, 23, 42, 0.6);
-    border-radius: 20px;
+.action-card {
     padding: 20px;
-    text-align: center;
+    border-radius: 24px;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.percentage-number {
-    font-size: clamp(3rem, 10vw, 4.5rem);
-    font-weight: 900;
-    margin: 10px 0;
+.action-card.primary {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.1));
 }
 
-.activity-feed {
+.action-card.secondary {
+    background: rgba(30, 41, 59, 0.4);
+}
+
+.action-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.action-icon {
+    font-size: 1.5rem;
+}
+
+.action-info h3 {
+    font-size: 0.95rem;
+    margin: 0;
+    color: #f8fafc;
+}
+
+.action-info p {
+    font-size: 0.75rem;
+    margin: 2px 0 0;
+    color: #94a3b8;
+}
+
+/* --- RECENT ACTIVITY --- */
+.section-divider {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.section-divider h2 {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.view-all {
+    font-size: 0.8rem;
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.recent-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.match-card-item {
-    background: rgba(15, 23, 42, 0.4);
-    border-radius: 16px;
-    padding: 15px;
-    border-left: 4px solid #334155;
-}
-
-.commander-accent {
-    border-left-color: #3b82f6;
-}
-
-.pauper-accent {
-    border-left-color: #10b981;
-}
-
-.match-card-header {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.7rem;
-    margin-bottom: 8px;
-}
-
-.match-card-body {
+.mini-match-card {
+    background: rgba(30, 41, 59, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    padding: 16px;
+    border-radius: 20px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 15px;
+    text-decoration: none;
+    /* Quita subrayado del link */
+    transition: all 0.3s ease;
 }
 
-.result-indicator {
-    font-size: 0.65rem;
+/* Efecto al pasar el ratón por la tarjeta de actividad */
+.clickable-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(59, 130, 246, 0.2);
+    transform: translateX(5px);
+}
+
+.match-status {
+    width: 6px;
+    height: 35px;
+    border-radius: 10px;
+}
+
+.match-status.win {
+    background: #34d399;
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
+}
+
+.match-status.loss {
+    background: #f87171;
+}
+
+.match-status.neutral {
+    background: #64748b;
+}
+
+.match-details {
+    flex: 1;
+}
+
+.match-meta {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.m-format {
+    font-size: 0.6rem;
     font-weight: 900;
-    padding: 4px 8px;
-    border-radius: 6px;
+    color: #3b82f6;
+    text-transform: uppercase;
 }
 
-.result-indicator.win {
-    background: rgba(16, 185, 129, 0.1);
-    color: #10b981;
+.m-date {
+    font-size: 0.65rem;
+    color: #475569;
 }
 
-.result-indicator.loss {
-    background: rgba(239, 68, 68, 0.1);
-    color: #f87171;
-}
-
-.match-deck-name {
+.match-players {
     font-size: 0.85rem;
-    color: #e2e8f0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: #cbd5e1;
 }
 
-.btn-primary {
-    width: 100%;
-    padding: 14px;
-    background: #3b82f6;
-    color: #fff;
-    border: none;
-    border-radius: 12px;
+.winner-name {
     font-weight: 800;
-    cursor: pointer;
-    transition: transform 0.2s;
+    color: #f1f5f9;
 }
 
-.btn-primary:active {
-    transform: scale(0.98);
+.vs {
+    color: #64748b;
+    margin-left: 4px;
 }
 
-@media (max-width: 600px) {
-    .grid-jugadores {
-        grid-template-columns: 1fr;
+.match-arrow {
+    color: #334155;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.clickable-card:hover .match-arrow {
+    color: #3b82f6;
+    transform: translateX(3px);
+}
+
+/* --- LOADING & EMPTY --- */
+.shimmer-card {
+    height: 80px;
+    background: linear-gradient(90deg, rgba(30, 41, 59, 0.2) 25%, rgba(30, 41, 59, 0.5) 50%, rgba(30, 41, 59, 0.2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 20px;
+    margin-bottom: 10px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
     }
 
-    .card-inner {
-        padding: 20px;
+    100% {
+        background-position: -200% 0;
     }
 }
 
-.fade-in {
-    animation: fadeIn 0.5s ease-out;
+.empty-zen-state {
+    text-align: center;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 30px;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+.zen-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    opacity: 0.5;
 }
 </style>

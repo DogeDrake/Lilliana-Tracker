@@ -1,7 +1,10 @@
 <script setup>
-import { ref, onMounted, reactive, computed } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '../supabaseClient'
 import DeckCard from '../components/DeckCard.vue'
+
+const router = useRouter()
 
 // --- ESTADOS ---
 const profile = ref(null)
@@ -18,14 +21,14 @@ const showDeckStats = ref(false)
 const newAvatarUrl = ref('')
 const selectedDeckStats = ref(null)
 
-// Objeto de mazo corregido según tu DB
+// Objeto de mazo
 const newDeck = reactive({
     nombre_personalizado: '',
     formato: 'commander',
     decklist_url: '',
     image_url: '',
-    comandante_nombre: '', 
-    arquetipo_pauper: '', 
+    comandante_nombre: '',
+    arquetipo_pauper: '',
     color_identity: []
 })
 
@@ -50,7 +53,7 @@ onMounted(async () => {
         const { data: { user }, error: authError } = await supabase.auth.getUser()
 
         if (authError || !user) {
-            window.location.href = '/login'
+            router.push('/login')
             return
         }
 
@@ -98,6 +101,10 @@ const fetchStatsAndHistory = async (userId, username) => {
     }
 }
 
+const goToMatch = (matchId) => {
+    if (matchId) router.push(`/partida/${matchId}`)
+}
+
 const toggleColor = (code) => {
     const index = newDeck.color_identity.indexOf(code)
     if (index > -1) newDeck.color_identity.splice(index, 1)
@@ -131,11 +138,8 @@ const openStats = async (deck) => {
         const gameOpponents = opponents?.filter(o => o.match_id === dm.match_id) || [];
         gameOpponents.forEach(opp => {
             const name = opp.player_name_manual || 'Anónimo';
-            if (dm.is_winner) {
-                victimMap[name] = (victimMap[name] || 0) + 1;
-            } else if (opp.is_winner) {
-                nemesisMap[name] = (nemesisMap[name] || 0) + 1;
-            }
+            if (dm.is_winner) victimMap[name] = (victimMap[name] || 0) + 1;
+            else if (opp.is_winner) nemesisMap[name] = (nemesisMap[name] || 0) + 1;
         });
     });
 
@@ -156,8 +160,6 @@ const createDeck = async () => {
     isSubmitting.value = true
     try {
         const { data: { user } } = await supabase.auth.getUser()
-
-        // Lógica condicional para no enviar datos innecesarios
         const payload = {
             nombre_personalizado: newDeck.nombre_personalizado,
             formato: newDeck.formato,
@@ -168,14 +170,8 @@ const createDeck = async () => {
             comandante_nombre: newDeck.formato === 'commander' ? newDeck.comandante_nombre : null,
             arquetipo_pauper: newDeck.formato === 'pauper' ? newDeck.arquetipo_pauper : null
         }
-
-        const { data, error } = await supabase
-            .from('decks')
-            .insert([payload])
-            .select()
-
+        const { data, error } = await supabase.from('decks').insert([payload]).select()
         if (error) throw error
-
         decks.value.unshift(data[0])
         showAddDeck.value = false
         resetForm()
@@ -187,13 +183,10 @@ const createDeck = async () => {
 }
 
 const resetForm = () => {
-    newDeck.nombre_personalizado = ''
-    newDeck.decklist_url = ''
-    newDeck.image_url = ''
-    newDeck.formato = 'commander'
-    newDeck.comandante_nombre = ''
-    newDeck.arquetipo_pauper = ''
-    newDeck.color_identity = []
+    Object.assign(newDeck, {
+        nombre_personalizado: '', decklist_url: '', image_url: '',
+        formato: 'commander', comandante_nombre: '', arquetipo_pauper: '', color_identity: []
+    })
 }
 
 const updateAvatar = async () => {
@@ -213,13 +206,13 @@ const updateAvatar = async () => {
 
 const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '---'
 const openDecklist = (url) => { if (url) window.open(url, '_blank') }
-async function handleLogout() { await supabase.auth.signOut(); window.location.href = '/' }
+async function handleLogout() { await supabase.auth.signOut(); router.push('/') }
 </script>
 
 <template>
     <div v-if="loading" class="loading-overlay">
         <div class="spinner"></div>
-        <p>Invocando perfil...</p>
+        <p class="invoking-text">Invocando perfil...</p>
     </div>
 
     <div v-else-if="profile" class="profile-view-root">
@@ -239,11 +232,11 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
                             {{ profile.username?.charAt(0).toUpperCase() }}
                         </div>
                         <div class="avatar-glow"></div>
-                        <div class="edit-overlay"><span>CAMBIAR</span></div>
+                        <div class="edit-overlay"><span>EDITAR</span></div>
                     </div>
                     <div class="hero-text">
                         <h1 class="username-title">{{ profile.username }}</h1>
-                        <p class="rank-subtitle">Planeswalker de Élite</p>
+                        <p class="rank-subtitle">Planeswalker Registrado</p>
                     </div>
                 </div>
 
@@ -265,20 +258,21 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
             <section class="content-section">
                 <div class="section-header-bar">
-                    <h2 class="section-title">Tus Mazos</h2>
+                    <h2 class="section-title">Biblioteca de Mazos</h2>
                     <button @click="showAddDeck = true" class="add-deck-btn">+ NUEVO MAZO</button>
                 </div>
                 <div class="decks-layout-grid">
                     <DeckCard v-for="deck in decks" :key="deck.id" :deck="deck" @click="openDecklist(deck.decklist_url)"
                         @show-stats="openStats(deck)" />
-                    <div v-if="decks.length === 0" class="empty-state-text">No has registrado mazos todavía.</div>
+                    <div v-if="decks.length === 0" class="empty-state-card-mini">No has registrado mazos todavía.</div>
                 </div>
             </section>
 
-            <section class="content-section">
-                <h2 class="section-title">Historial de Partidas</h2>
+            <section class="content-section history-section-spacer">
+                <h2 class="section-title">Últimas Partidas</h2>
                 <div class="history-list">
-                    <div v-for="entry in history" :key="entry.match_id" class="history-item">
+                    <button v-for="entry in history" :key="entry.match_id" class="history-item-btn"
+                        @click="goToMatch(entry.match_id)">
                         <div class="h-date">{{ formatDate(entry.matches.fecha_partida) }}</div>
                         <div class="h-main">
                             <span class="h-deck">{{ entry.deck_name_manual || 'Mazo sin nombre' }}</span>
@@ -286,8 +280,10 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
                         </div>
                         <div class="h-result" :class="entry.is_winner ? 'win' : 'loss'">
                             {{ entry.is_winner ? 'VICTORIA' : 'DERROTA' }}
+                            <span class="h-arrow">→</span>
                         </div>
-                    </div>
+                    </button>
+                    <div v-if="history.length === 0" class="empty-history">Sin registros de partidas recientes.</div>
                 </div>
             </section>
         </div>
@@ -297,7 +293,6 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
             <div v-if="showDeckStats" class="modal-content glass-modal stats-modal-large fade-in-up">
                 <div class="modal-header">
-                    <div class="header-indicator stats"></div>
                     <div class="header-titles">
                         <span class="deck-format-tag">{{ selectedDeckStats.formato }}</span>
                         <h3>{{ selectedDeckStats.nombre_personalizado }}</h3>
@@ -306,15 +301,14 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
                 </div>
 
                 <div v-if="selectedDeckStats.empty" class="empty-state-stats">
-                    <div class="no-data-icon">📜</div>
-                    <p>No hay registros de **partida** para este mazo.</p>
+                    Sin registros para este mazo.
                 </div>
 
                 <div v-else class="stats-grid-container">
                     <div class="main-metrics">
                         <div class="metric-card">
                             <span class="m-val">{{ selectedDeckStats.winRate }}%</span>
-                            <span class="m-lab">Efectividad</span>
+                            <span class="m-lab">Win Rate</span>
                         </div>
                         <div class="metric-card">
                             <span class="m-val">{{ selectedDeckStats.total }}</span>
@@ -323,28 +317,17 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
                     </div>
 
                     <div class="rival-tracking">
-                        <h4>Historial contra Rivales</h4>
                         <div class="rival-row nemesis">
                             <span class="r-tag">NÉMESIS</span>
                             <span class="r-name">{{ selectedDeckStats.nemesis[0] || '---' }}</span>
-                            <span class="r-score">{{ selectedDeckStats.nemesis[1] }} derrotas</span>
+                            <span class="r-count" v-if="selectedDeckStats.nemesis[0]">x{{ selectedDeckStats.nemesis[1]
+                                }}</span>
                         </div>
                         <div class="rival-row victim">
                             <span class="r-tag">VÍCTIMA</span>
                             <span class="r-name">{{ selectedDeckStats.victim[0] || '---' }}</span>
-                            <span class="r-score">{{ selectedDeckStats.victim[1] }} victorias</span>
-                        </div>
-                    </div>
-
-                    <div class="deck-info-footer">
-                        <div v-if="selectedDeckStats.formato.toLowerCase() === 'commander' && selectedDeckStats.comandante_nombre" class="footer-item">
-                            <span class="label">Comandante:</span> {{ selectedDeckStats.comandante_nombre }}
-                        </div>
-                        <div v-if="selectedDeckStats.formato.toLowerCase() === 'pauper' && selectedDeckStats.arquetipo_pauper" class="footer-item">
-                            <span class="label">Arquetipo:</span> {{ selectedDeckStats.arquetipo_pauper }}
-                        </div>
-                        <div v-if="selectedDeckStats.color_identity" class="footer-item">
-                            <span class="label">Identidad:</span> {{ selectedDeckStats.color_identity }}
+                            <span class="r-count" v-if="selectedDeckStats.victim[0]">x{{ selectedDeckStats.victim[1]
+                                }}</span>
                         </div>
                     </div>
                 </div>
@@ -352,94 +335,55 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
             <div v-if="showAddDeck" class="modal-content glass-modal add-deck-modal fade-in-up">
                 <div class="modal-header">
-                    <div class="header-indicator"></div>
                     <h3>FORJAR NUEVO MAZO</h3>
-                    <button class="close-btn-styled" @click="showAddDeck = false">✕</button>
+                    <button @click="showAddDeck = false" class="close-btn-styled">✕</button>
                 </div>
-
                 <div class="magic-form">
-                    <div class="form-scroll-area">
-                        <div class="input-group">
-                            <label>Nombre del Mazo</label>
-                            <input v-model="newDeck.nombre_personalizado" class="magic-input"
-                                placeholder="Ej: Urza's Destiny" />
+                    <div class="input-group"><label>Nombre</label><input v-model="newDeck.nombre_personalizado"
+                            class="magic-input" /></div>
+                    <div class="grid-2-col">
+                        <div class="input-group"><label>Formato</label>
+                            <select v-model="newDeck.formato" class="magic-input">
+                                <option value="commander">Commander</option>
+                                <option value="pauper">Pauper</option>
+                            </select>
                         </div>
-
-                        <div class="grid-2-col">
-                            <div class="input-group">
-                                <label>Formato</label>
-                                <select v-model="newDeck.formato" class="magic-input">
-                                    <option value="commander">Commander</option>
-                                    <option value="pauper">Pauper</option>
-                                </select>
+                        <div class="input-group"><label>Colores</label>
+                            <div class="color-picker-mini">
+                                <button v-for="c in colorOptions" :key="c.code" @click="toggleColor(c.code)"
+                                    :class="['color-btn', { active: newDeck.color_identity.includes(c.code) }]">{{
+        c.symbol }}</button>
                             </div>
-                            <div class="input-group">
-                                <label>Identidad de Color</label>
-                                <div class="color-picker-mini">
-                                    <button v-for="c in colorOptions" :key="c.code" @click="toggleColor(c.code)"
-                                        :class="['color-btn', { active: newDeck.color_identity.includes(c.code) }]"
-                                        :title="c.name">
-                                        {{ c.symbol }}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="newDeck.formato === 'commander'" class="input-group special-field fade-in">
-                            <label>Nombre del Comandante</label>
-                            <input v-model="newDeck.comandante_nombre" class="magic-input gold-border"
-                                placeholder="Ej: Atraxa, Praetors' Voice" />
-                        </div>
-
-                        <div v-if="newDeck.formato === 'pauper'" class="input-group special-field fade-in">
-                            <label>Arquetipo</label>
-                            <input v-model="newDeck.arquetipo_pauper" class="magic-input blue-border"
-                                placeholder="Ej: Burn, Mono Blue Delver..." />
-                        </div>
-
-                        <div class="input-group">
-                            <label>URL Arte de Portada</label>
-                            <input v-model="newDeck.image_url" class="magic-input" placeholder="https://..." />
-                        </div>
-
-                        <div class="input-group">
-                            <label>Decklist (Opcional)</label>
-                            <input v-model="newDeck.decklist_url" class="magic-input"
-                                placeholder="Moxfield, Goldfish..." />
                         </div>
                     </div>
-
-                    <button @click="createDeck" class="btn-submit-magic" :disabled="isSubmitting">
-                        {{ isSubmitting ? 'REGISTRANDO...' : 'REGISTRAR MAZO' }}
-                    </button>
+                    <div v-if="newDeck.formato === 'commander'" class="input-group"><label>Comandante</label><input
+                            v-model="newDeck.comandante_nombre" class="magic-input gold-border" /></div>
+                    <div v-if="newDeck.formato === 'pauper'" class="input-group"><label>Arquetipo</label><input
+                            v-model="newDeck.arquetipo_pauper" class="magic-input blue-border" /></div>
+                    <div class="input-group"><label>Imagen (URL)</label><input v-model="newDeck.image_url"
+                            class="magic-input" /></div>
+                    <button @click="createDeck" class="btn-submit-magic" :disabled="isSubmitting">REGISTRAR
+                        MAZO</button>
                 </div>
             </div>
 
             <div v-if="showEditAvatar" class="modal-content glass-modal fade-in-up">
                 <div class="modal-header">
-                    <div class="header-indicator"></div>
-                    <h3>EDITAR AVATAR</h3>
-                    <button class="close-btn-styled" @click="showEditAvatar = false">✕</button>
+                    <h3>EDITAR AVATAR</h3><button @click="showEditAvatar = false" class="close-btn-styled">✕</button>
                 </div>
-                <div class="avatar-form">
-                    <div class="input-group">
-                        <label>URL DE LA IMAGEN</label>
-                        <input v-model="newAvatarUrl" class="magic-input" placeholder="https://..." />
-                    </div>
-                    <button @click="updateAvatar" class="btn-submit-magic" :disabled="isSubmitting">GUARDAR
-                        CAMBIOS</button>
+                <div class="input-group"><label>URL Imagen</label><input v-model="newAvatarUrl" class="magic-input" />
                 </div>
+                <button @click="updateAvatar" class="btn-submit-magic" :disabled="isSubmitting">GUARDAR</button>
             </div>
         </div>
     </div>
 </template>
 
 <style scoped>
-/* --- BASE & UTILS --- */
 .profile-view-root {
     min-height: 100vh;
     color: white;
-    padding-bottom: 120px;
+    padding-bottom: 80px;
     font-family: 'Inter', sans-serif;
 }
 
@@ -449,42 +393,42 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     padding: 20px;
 }
 
-/* --- HEADER --- */
+/* HEADER */
 .top-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 40px;
+    margin-bottom: 30px;
 }
 
 .brand {
     font-weight: 900;
     color: #3b82f6;
     letter-spacing: 2px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .logout-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #94a3b8;
-    padding: 8px 16px;
+    padding: 6px 14px;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 .hero-section {
     display: flex;
     align-items: center;
-    gap: 30px;
-    margin-bottom: 40px;
+    gap: 25px;
+    margin-bottom: 35px;
 }
 
 .avatar-wrapper {
     position: relative;
-    width: 110px;
-    height: 110px;
+    width: 100px;
+    height: 100px;
     cursor: pointer;
 }
 
@@ -499,6 +443,7 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     align-items: center;
     justify-content: center;
     background: #1e293b;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
 }
 
 .avatar-image {
@@ -509,7 +454,7 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
 .avatar-circle {
     background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    font-size: 2.5rem;
+    font-size: 2rem;
     font-weight: 900;
 }
 
@@ -523,7 +468,7 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     justify-content: center;
     opacity: 0;
     transition: 0.3s;
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 900;
 }
 
@@ -532,36 +477,42 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 }
 
 .username-title {
-    font-size: clamp(1.8rem, 5vw, 3rem);
+    font-size: 2.2rem;
     font-weight: 900;
     margin: 0;
+    letter-spacing: -1px;
 }
 
 .rank-subtitle {
     color: #60a5fa;
     text-transform: uppercase;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 800;
+    letter-spacing: 1px;
 }
 
+/* STATS RÁPIDAS */
 .quick-stats-row {
     display: flex;
-    gap: 15px;
-    padding: 25px 0;
+    gap: 12px;
+    padding: 20px 0;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .q-stat {
     flex: 1;
+    background: rgba(30, 41, 59, 0.3);
+    padding: 15px;
+    border-radius: 16px;
     text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .q-num {
     display: block;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 900;
-    color: #3b82f6;
+    color: #f1f5f9;
 }
 
 .q-label {
@@ -571,13 +522,7 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     font-weight: 800;
 }
 
-/* --- MAZOS GRID --- */
-.decks-layout-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-}
-
+/* SECCIONES Y ESPACIADO */
 .section-header-bar {
     display: flex;
     justify-content: space-between;
@@ -586,21 +531,28 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 }
 
 .section-title {
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 15px;
+    letter-spacing: 1.5px;
+    color: #94a3b8;
     margin-bottom: 15px;
 }
 
+.history-section-spacer {
+    margin-top: 60px;
+}
+
+/* Dando aire al historial */
+
+/* MAZOS */
 .add-deck-btn {
     background: #3b82f6;
     color: white;
-    padding: 10px 18px;
+    padding: 8px 16px;
     border-radius: 10px;
     font-weight: 900;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     border: none;
     cursor: pointer;
     transition: 0.2s;
@@ -608,23 +560,41 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
 .add-deck-btn:hover {
     background: #2563eb;
-    transform: scale(1.05);
+    transform: translateY(-2px);
 }
 
-/* --- HISTORIAL --- */
+.decks-layout-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+/* HISTORIAL */
 .history-list {
-    background: rgba(30, 41, 59, 0.4);
+    background: rgba(15, 23, 42, 0.4);
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.05);
     overflow: hidden;
 }
 
-.history-item {
+.history-item-btn {
     display: grid;
     grid-template-columns: 80px 1fr auto;
     align-items: center;
-    padding: 15px 20px;
+    padding: 16px 20px;
+    border: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.2s;
+    color: inherit;
+}
+
+.history-item-btn:hover {
+    background: rgba(59, 130, 246, 0.1);
+    transform: translateX(5px);
 }
 
 .h-date {
@@ -636,21 +606,24 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     display: block;
     font-weight: 700;
     color: #f1f5f9;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 .h-format {
     font-size: 0.6rem;
     color: #3b82f6;
     text-transform: uppercase;
-    font-weight: 900;
+    font-weight: 800;
 }
 
 .h-result {
     font-size: 0.6rem;
     font-weight: 900;
-    padding: 5px 10px;
+    padding: 4px 10px;
     border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .win {
@@ -663,7 +636,108 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
     color: #f87171;
 }
 
-/* --- MODAL GENERAL --- */
+.h-arrow {
+    opacity: 0;
+    transition: 0.2s;
+}
+
+.history-item-btn:hover .h-arrow {
+    opacity: 1;
+}
+
+/* MODAL STATS (ESTILOS RECUPERADOS) */
+.stats-modal-large {
+    max-width: 450px !important;
+}
+
+.deck-format-tag {
+    font-size: 0.6rem;
+    font-weight: 900;
+    color: #3b82f6;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.stats-grid-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 10px;
+}
+
+.main-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 20px;
+    border-radius: 18px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.m-val {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #3b82f6;
+}
+
+.m-lab {
+    font-size: 0.65rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+.rival-tracking {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.rival-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 18px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.r-tag {
+    font-size: 0.55rem;
+    font-weight: 900;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-right: 12px;
+}
+
+.nemesis .r-tag {
+    background: #f87171;
+    color: #450a0a;
+}
+
+.victim .r-tag {
+    background: #34d399;
+    color: #064e3b;
+}
+
+.r-name {
+    flex: 1;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.r-count {
+    font-size: 0.7rem;
+    color: #64748b;
+    font-weight: 800;
+}
+
+/* MODAL GENERAL */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -678,232 +752,70 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
 
 .glass-modal {
     background: #0f172a;
-    padding: 30px;
+    padding: 35px;
     border-radius: 28px;
     width: 100%;
     border: 1px solid rgba(59, 130, 246, 0.2);
+    max-width: 500px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 25px;
-    position: relative;
-}
-
 .close-btn-styled {
-    background: none;
+    background: rgba(255, 255, 255, 0.05);
     border: none;
-    color: #64748b;
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.close-btn-styled:hover {
     color: white;
-}
-
-/* --- MODAL AÑADIR MAZO (NUEVO) --- */
-.add-deck-modal {
-    max-width: 500px;
-}
-
-.grid-2-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-}
-
-.input-group label {
-    display: block;
-    font-size: 0.65rem;
-    font-weight: 800;
-    color: #64748b;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    letter-spacing: 0.5px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
 }
 
 .magic-input {
     background: #1e293b;
     border: 1px solid #334155;
-    padding: 12px 16px;
+    padding: 14px;
     border-radius: 12px;
     color: white;
     width: 100%;
+    margin-bottom: 15px;
     font-size: 0.9rem;
-    transition: 0.3s;
-    margin-bottom: 15px;
-}
-
-.magic-input:focus {
-    border-color: #3b82f6;
-    outline: none;
-    background: #243347;
-}
-
-.gold-border {
-    border-color: #ca8a04 !important;
-}
-
-.blue-border {
-    border-color: #2563eb !important;
-}
-
-.color-picker-mini {
-    display: flex;
-    gap: 4px;
-    background: #1e293b;
-    padding: 5px;
-    border-radius: 10px;
-    border: 1px solid #334155;
-}
-
-.color-btn {
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.2s;
-}
-
-.color-btn.active {
-    background: #3b82f6;
-    border-color: #60a5fa;
-    transform: scale(1.1);
-}
-
-/* --- MODAL ESTADÍSTICAS (NUEVO) --- */
-.stats-modal-large {
-    max-width: 450px;
-}
-
-.header-titles h3 {
-    margin: 0;
-    font-size: 1.4rem;
-    font-weight: 900;
-}
-
-.deck-format-tag {
-    font-size: 0.6rem;
-    background: #3b82f6;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: 900;
-    text-transform: uppercase;
-}
-
-.main-metrics {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 25px;
-}
-
-.metric-card {
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 20px;
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.m-val {
-    display: block;
-    font-size: 1.8rem;
-    font-weight: 900;
-    color: #a855f7;
-}
-
-.m-lab {
-    font-size: 0.65rem;
-    color: #94a3b8;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.rival-tracking h4 {
-    font-size: 0.7rem;
-    color: #64748b;
-    text-transform: uppercase;
-    margin-bottom: 15px;
-}
-
-.rival-row {
-    display: flex;
-    align-items: center;
-    padding: 12px;
-    border-radius: 12px;
-    margin-bottom: 10px;
-    font-size: 0.85rem;
-}
-
-.nemesis {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-.victim {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.r-tag {
-    font-size: 0.55rem;
-    font-weight: 900;
-    padding: 3px 6px;
-    border-radius: 4px;
-    margin-right: 10px;
-}
-
-.nemesis .r-tag {
-    background: #ef4444;
-}
-
-.victim .r-tag {
-    background: #10b981;
-}
-
-.r-name {
-    font-weight: 700;
-    flex: 1;
-}
-
-.r-score {
-    font-size: 0.75rem;
-    color: #94a3b8;
 }
 
 .btn-submit-magic {
     width: 100%;
     padding: 16px;
     background: #3b82f6;
-    border-radius: 14px;
+    border-radius: 12px;
     color: white;
     font-weight: 900;
     border: none;
     cursor: pointer;
-    transition: 0.3s;
     margin-top: 10px;
 }
 
-.btn-submit-magic:hover {
-    background: #2563eb;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+/* ANIMACIONES */
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
 }
 
-/* Animaciones */
 .fade-in-up {
     animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes fadeInUp {
@@ -916,5 +828,49 @@ async function handleLogout() { await supabase.auth.signOut(); window.location.h
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* --- ESTILOS CORREGIDOS PARA LA CABECERA DEL MODAL --- */
+
+.modal-header {
+    display: flex;
+    /* Alinea hijos en fila */
+    justify-content: space-between;
+    /* Empuja el título a la izquierda y la X a la derecha */
+    align-items: flex-start;
+    /* Alinea al tope superior */
+    width: 100%;
+    margin-bottom: 25px;
+    /* Espacio con el contenido de abajo */
+}
+
+.header-titles {
+    display: flex;
+    flex-direction: column;
+    /* Mantiene el tag arriba y el nombre abajo */
+    gap: 4px;
+}
+
+.close-btn-styled {
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    /* Centra la X dentro del círculo */
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+    flex-shrink: 0;
+    /* Evita que el botón se deforme si el título es largo */
+}
+
+.close-btn-styled:hover {
+    background: rgba(239, 68, 68, 0.2);
+    /* Rojo suave al pasar el ratón */
+    color: #f87171;
 }
 </style>
