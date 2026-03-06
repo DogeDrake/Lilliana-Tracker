@@ -47,16 +47,15 @@ const stats = reactive({
 
 const showExportModal = ref(false)
 
-// --- LÓGICA DE EXPORTACIÓN CSV MODIFICADA ---
+// --- LÓGICA DE EXPORTACIÓN CSV MODIFICADA (Sin columna Formato) ---
 const downloadCSV = async (selectedFormat) => {
     try {
-        // 1. Preguntar al usuario qué formato desea exportar
-       showExportModal.value = false;
+        showExportModal.value = false;
 
-        // 2. Filtrar los mazos locales por formato
+        // 1. Filtrar los mazos locales por formato
         const filteredDecks = decks.value.filter(d => d.formato === selectedFormat);
         
-        // 3. Filtrar el historial por formato
+        // 2. Filtrar el historial por formato
         const filteredHistory = history.value.filter(h => h.matches?.formato === selectedFormat);
 
         if (filteredHistory.length === 0 && filteredDecks.length === 0) {
@@ -66,7 +65,7 @@ const downloadCSV = async (selectedFormat) => {
 
         const matchIds = filteredHistory.map(h => h.match_id);
 
-        // 4. Obtener participantes (solo de las partidas filtradas)
+        // 3. Obtener participantes
         const { data: allParticipants } = await supabase
             .from('match_participants')
             .select(`
@@ -84,13 +83,14 @@ const downloadCSV = async (selectedFormat) => {
 
         // --- SECCIÓN 1: MIS MAZOS (FILTRADOS) ---
         csvContent += `--- SECCION: MIS MAZOS (${selectedFormat.toUpperCase()}) ---\n`;
-        csvContent += `Nombre${SEP}Formato${SEP}Comandante/Arquetipo${SEP}Colores\n`;
+        // Eliminado "Formato" de la cabecera
+        csvContent += `Nombre${SEP}Comandante/Arquetipo${SEP}Colores\n`;
 
         filteredDecks.forEach(d => {
             const extra = d.formato === 'commander' ? d.comandante_nombre : d.arquetipo_pauper;
             const row = [
                 d.nombre_personalizado,
-                d.formato,
+                // d.formato, <-- Eliminado
                 extra || '',
                 d.color_identity || ''
             ].map(text => `"${String(text).replace(/"/g, '""')}"`);
@@ -101,7 +101,8 @@ const downloadCSV = async (selectedFormat) => {
 
         // --- SECCIÓN 2: HISTORIAL DE PARTIDAS (FILTRADAS) ---
         const maxOpponents = 3;
-        let headerPartidas = `Fecha${SEP}Formato${SEP}Mazo Usado${SEP}Resultado`;
+        // Eliminado "Formato" de la cabecera de partidas
+        let headerPartidas = `Fecha${SEP}Mazo Usado${SEP}Resultado`;
         for (let i = 1; i <= maxOpponents; i++) {
             headerPartidas += `${SEP}Rival ${i}${SEP}Mazo Rival ${i}`;
         }
@@ -110,7 +111,6 @@ const downloadCSV = async (selectedFormat) => {
         csvContent += `--- SECCION: HISTORIAL DE PARTIDAS (${selectedFormat.toUpperCase()}) ---\n`;
         csvContent += headerPartidas;
 
-        // Orden cronológico para winrates correctos
         const chronologicalHistory = [...filteredHistory].sort((a, b) =>
             new Date(a.matches.fecha_partida) - new Date(b.matches.fecha_partida)
         );
@@ -141,12 +141,11 @@ const downloadCSV = async (selectedFormat) => {
                     return { name: displayName, deck: p.deck_name_manual || '?' };
                 }) || [];
 
-            // Formatear fecha: Solo día/mes/año
             const soloFecha = new Date(match.matches.fecha_partida).toLocaleDateString('es-ES');
 
             let rowArray = [
-                soloFecha, // Sin hora
-                match.matches.formato,
+                soloFecha,
+                // match.matches.formato, <-- Eliminado
                 myDeck,
                 isWin ? "VICTORIA" : "DERROTA"
             ];
@@ -167,6 +166,7 @@ const downloadCSV = async (selectedFormat) => {
             csvContent += rowArray.map(text => `"${String(text).replace(/"/g, '""')}"`).join(SEP) + "\n";
         });
 
+        // 4. Descarga del archivo
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
