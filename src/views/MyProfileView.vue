@@ -45,12 +45,13 @@ const stats = reactive({
     winRate: 0
 })
 
+const showExportModal = ref(false)
+
 // --- LÓGICA DE EXPORTACIÓN CSV MODIFICADA ---
-const downloadCSV = async () => {
+const downloadCSV = async (selectedFormat) => {
     try {
         // 1. Preguntar al usuario qué formato desea exportar
-        const userChoice = confirm("¿Deseas exportar solo las partidas de COMMANDER? (Cancelar para PAUPER)");
-        const selectedFormat = userChoice ? 'commander' : 'pauper';
+       showExportModal.value = false;
 
         // 2. Filtrar los mazos locales por formato
         const filteredDecks = decks.value.filter(d => d.formato === selectedFormat);
@@ -367,7 +368,7 @@ async function handleLogout() { await supabase.auth.signOut(); router.push('/') 
                 <nav class="top-bar">
                     <span class="brand">LILLIANA TRACKER</span>
                     <div class="header-actions">
-                        <button @click="downloadCSV" class="export-btn" title="Descargar Reporte CSV">
+                        <button @click="showExportModal = true" class="export-btn" title="Descargar Reporte CSV">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round">
@@ -446,9 +447,30 @@ async function handleLogout() { await supabase.auth.signOut(); router.push('/') 
             </section>
         </div>
 
-        <div v-if="showAddDeck || showEditAvatar || showDeckStats" class="modal-overlay"
+        <div v-if="showAddDeck || showEditAvatar || showDeckStats || showExportModal" class="modal-overlay"
             @click.self="showAddDeck = false; showEditAvatar = false; showDeckStats = false">
+<div v-if="showExportModal" class="modal-content glass-modal export-selection-modal fade-in-up">
+    <div class="modal-header">
+        <h3>EXPORTAR DATOS</h3>
+        <button @click="showExportModal = false" class="close-btn-styled">✕</button>
+    </div>
+    
+    <p class="modal-intro-text">Selecciona el formato de las partidas que deseas exportar a CSV:</p>
+    
+    <div class="export-options-grid">
+        <button @click="downloadCSV('commander')" class="export-option-card commander-opt">
+            <span class="opt-icon">👑</span>
+            <span class="opt-title">Commander</span>
+            <span class="opt-desc">Exportar mis mazos y partidas de 100 cartas.</span>
+        </button>
 
+        <button @click="downloadCSV('pauper')" class="export-option-card pauper-opt">
+            <span class="opt-icon">🛡️</span>
+            <span class="opt-title">Pauper</span>
+            <span class="opt-desc">Exportar registros de mazos y partidas Common-only.</span>
+        </button>
+    </div>
+</div>
             <div v-if="showDeckStats" class="modal-content glass-modal stats-modal-large fade-in-up">
                 <div class="modal-header">
                     <div class="header-titles">
@@ -1200,5 +1222,64 @@ async function handleLogout() { await supabase.auth.signOut(); router.push('/') 
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
+}
+
+.modal-intro-text {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.export-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.export-option-card {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+.export-option-card:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+    transform: translateY(-3px);
+}
+
+.opt-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.opt-title {
+    font-weight: 900;
+    font-size: 1rem;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+.commander-opt .opt-title { color: #facc15; } /* Dorado */
+.pauper-opt .opt-title { color: #60a5fa; }    /* Azul */
+
+.opt-desc {
+    font-size: 0.65rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* Ajuste para que el modal no sea demasiado ancho */
+.export-selection-modal {
+    max-width: 450px !important;
 }
 </style>
