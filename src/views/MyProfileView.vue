@@ -1221,7 +1221,7 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
 
 /* Ajuste para que el modal no sea demasiado ancho */
 .export-selection-modal {
-    max-width: 450px !important;
+    max-width: 550px !important;
 }
     .format-action-card {
     background: rgba(30, 41, 59, 0.5);
