@@ -1,0 +1,6 @@
+{
+  "appId": "com.lillianatracker.app",
+  "appName": "Lilliana Tracker",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

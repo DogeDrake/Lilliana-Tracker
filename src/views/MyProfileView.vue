@@ -695,13 +695,21 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     font-size: 0.75rem;
 }
 
+.export-btn,
+.logout-btn,
+.add-deck-btn,
+.btn-submit-magic {
+    cursor: pointer;
+    touch-action: manipulation;
+    /* Optimiza respuesta táctil */
+}
+
 .export-btn {
     background: rgba(59, 130, 246, 0.15);
     border: 1px solid rgba(59, 130, 246, 0.3);
     color: #60a5fa;
     padding: 6px 14px;
     border-radius: 8px;
-    cursor: pointer;
     font-size: 0.7rem;
     font-weight: 800;
     display: flex;
@@ -716,7 +724,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     color: #94a3b8;
     padding: 6px 14px;
     border-radius: 8px;
-    cursor: pointer;
     font-size: 0.7rem;
 }
 
@@ -727,15 +734,13 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     margin-bottom: 35px;
 }
 
-/* --- CORRECCIÓN AVATAR: ASPECT-RATIO & FLEX --- */
+/* --- AVATAR --- */
 .avatar-wrapper {
     position: relative;
     width: 100px;
     height: 100px;
     flex-shrink: 0;
-    /* Impide que el flexbox lo deforme */
     aspect-ratio: 1 / 1;
-    /* Garantiza cuadratura */
     cursor: pointer;
 }
 
@@ -757,7 +762,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* Evita que la foto se estire */
 }
 
 .avatar-circle {
@@ -854,7 +858,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     font-weight: 900;
     font-size: 0.65rem;
     border: none;
-    cursor: pointer;
 }
 
 .decks-layout-grid {
@@ -884,14 +887,12 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     background: transparent;
     width: 100%;
     text-align: left;
-    cursor: pointer;
     transition: 0.2s;
     color: inherit;
 }
 
 .history-item-btn:hover {
     background: rgba(59, 130, 246, 0.1);
-    transform: translateX(5px);
 }
 
 .h-date {
@@ -933,39 +934,40 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     color: #f87171;
 }
 
-.h-arrow {
-    opacity: 0;
-    transition: 0.2s;
-}
-
-.history-item-btn:hover .h-arrow {
-    opacity: 1;
-}
-
-/* --- MODALES --- */
+/* --- REPARACIÓN DE MODALES --- */
 .modal-overlay {
     position: fixed;
-    inset: 0;
-    background: rgba(2, 6, 23, 0.9);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(2, 6, 23, 0.95);
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: flex;
     justify-content: center;
-    /* Por defecto centrado en escritorio */
     align-items: center;
-    z-index: 2000;
+    z-index: 9999;
+    /* Máximo Z para evitar bloqueos */
     padding: 20px;
-    /* Importante: permite que si el modal es más alto que la pantalla, se pueda scrollear el overlay y no el contenido interno */
     overflow-y: auto;
+    /* Asegura que los eventos de clic pasen a los hijos pero el overlay sea capturable */
+    pointer-events: auto;
 }
+
 .glass-modal {
     background: #0f172a;
-    padding: 35px;
+    padding: 30px;
     border-radius: 28px;
     width: 100%;
     border: 1px solid rgba(59, 130, 246, 0.2);
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
+    position: relative;
+    z-index: 10000;
+    /* Evita que el click dentro del modal cierre el modal */
+    pointer-events: auto;
 }
 
 .modal-header {
@@ -976,16 +978,16 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
 }
 
 .close-btn-styled {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.1);
     border: none;
     color: white;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 10001;
 }
 
 .magic-input {
@@ -996,7 +998,8 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     color: white;
     width: 100%;
     margin-bottom: 15px;
-    font-size: 0.9rem;
+    font-size: 16px;
+    /* Evita zoom automático en Android */
 }
 
 .btn-submit-magic {
@@ -1007,14 +1010,9 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     color: white;
     font-weight: 900;
     border: none;
-    cursor: pointer;
 }
 
-/* --- CORRECCIÓN MODAL CSV: RESPONSIVIDAD TOTAL --- */
-.export-selection-modal {
-    max-width: 500px !important;
-}
-
+/* --- CORRECCIONES CSV & EXPORT --- */
 .export-options-stack {
     display: flex;
     flex-direction: column;
@@ -1023,43 +1021,25 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
 
 .format-action-card {
     background: rgba(30, 41, 59, 0.5);
-    padding: 16px 20px;
+    padding: 16px;
     border-radius: 18px;
     border: 1px solid rgba(59, 130, 246, 0.2);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 15px;
-}
-
-.card-info-side {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.opt-title {
-    font-weight: 900;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
 }
 
 .action-buttons-row {
     display: flex;
     gap: 8px;
-    flex-shrink: 0;
-    /* Evita que los botones se encojan */
 }
 
 .btn-mini-action {
-    padding: 8px 16px;
+    padding: 8px 12px;
     border-radius: 8px;
     font-size: 0.65rem;
     font-weight: 900;
-    text-transform: uppercase;
-    cursor: pointer;
     border: none;
-    transition: 0.2s;
 }
 
 .btn-mini-action.export {
@@ -1073,50 +1053,27 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     border: 1px solid #10b981;
 }
 
-/* --- OTROS ELEMENTOS --- */
-.mobile-nav-pills {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.pill-link {
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    color: #60a5fa;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    text-decoration: none;
-    text-transform: uppercase;
-}
-
+/* --- COLOR PICKER --- */
 .color-picker-mini {
     display: flex;
     gap: 8px;
-    padding: 10px 0;
     flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px 0;
 }
 
 .color-btn {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     border: 2px solid #334155;
     background: #1e293b;
     color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     font-size: 1.1rem;
-    filter: grayscale(1);
-    opacity: 0.6;
+    opacity: 0.5;
 }
 
 .color-btn.active {
-    filter: grayscale(0);
     opacity: 1;
     border-color: #3b82f6;
     transform: scale(1.1);
@@ -1128,7 +1085,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
         gap: 15px;
     }
 
-    /* Asegurar círculo perfecto en móvil */
     .avatar-wrapper {
         width: 75px;
         height: 75px;
@@ -1138,27 +1094,13 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
         font-size: 1.7rem;
     }
 
-    /* Ajuste Modal CSV en móvil */
-    .format-action-card {
-        flex-direction: column;
-        align-items: stretch;
-        padding: 15px;
-        text-align: center;
+    .modal-overlay {
+        align-items: flex-start;
+        padding-top: 50px;
     }
 
-    .card-info-side {
-        justify-content: center;
-    }
-
-    .action-buttons-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        width: 100%;
-    }
-
-    .btn-mini-action {
-        width: 100%;
-        padding: 12px 5px;
+    .glass-modal {
+        padding: 20px;
     }
 
     .horizontal-scroll-mobile {
@@ -1173,9 +1115,19 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
         flex: 0 0 280px;
         scroll-snap-align: start;
     }
+}
 
-    .glass-modal {
-        padding: 25px 20px;
+@media (max-width: 480px) {
+    .action-buttons-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        gap: 5px;
+    }
+
+    .format-action-card {
+        flex-direction: column;
+        gap: 10px;
     }
 }
 
@@ -1207,7 +1159,7 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
 }
 
 .fade-in {
-    animation: fadeIn 0.5s ease-out;
+    animation: fadeIn 0.4s ease-out;
 }
 
 @keyframes fadeIn {
@@ -1221,13 +1173,13 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
 }
 
 .fade-in-up {
-    animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: fadeInUp 0.3s ease-out;
 }
 
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(15px);
     }
 
     to {
@@ -1240,38 +1192,16 @@ html {
     scroll-behavior: smooth;
 }
 
-/* ===========================================
-   MODAL: ESTADÍSTICAS DEL MAZO (Recuperado)
-   =========================================== */
+/* STATS MODAL LARGE */
 .stats-modal-large {
     max-width: 600px !important;
-    background: linear-gradient(160deg, #0f172a 0%, #1e293b 100%);
-    border: 1px solid rgba(59, 130, 246, 0.4);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-}
-
-.header-titles .deck-format-tag {
-    background: rgba(59, 130, 246, 0.2);
-    color: #60a5fa;
-    font-size: 0.6rem;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-weight: 900;
-    text-transform: uppercase;
-    display: inline-block;
-    margin-bottom: 4px;
-}
-
-.stats-grid-container {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
 }
 
 .main-metrics {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
+    margin-top: 20px;
 }
 
 .metric-card {
@@ -1280,199 +1210,47 @@ html {
     border-radius: 20px;
     text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex;
-    flex-direction: column;
 }
 
 .m-val {
     font-size: 2rem;
     font-weight: 900;
     color: #3b82f6;
-    line-height: 1;
 }
 
 .m-lab {
     font-size: 0.7rem;
     color: #94a3b8;
     text-transform: uppercase;
-    font-weight: 700;
-    margin-top: 8px;
+    display: block;
 }
 
-.rival-tracking {
+/* --- ESTILOS RECUPERADOS: MOBILE NAV PILLS --- */
+.mobile-nav-pills {
     display: flex;
-    flex-direction: column;
     gap: 10px;
+    margin: 20px 0;
+    padding-bottom: 10px;
+    overflow-x: auto;
 }
 
-.rival-row {
-    display: flex;
-    align-items: center;
-    padding: 12px 18px;
-    border-radius: 12px;
-    font-size: 0.85rem;
+.pill-link {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    padding: 8px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: 0.3s;
 }
 
-.rival-row.nemesis {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-.rival-row.victim {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.r-tag {
-    font-size: 0.6rem;
-    font-weight: 900;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-right: 12px;
-}
-
-.nemesis .r-tag {
-    background: #ef4444;
+.pill-link:hover,
+.pill-link:active {
+    background: #3b82f6;
     color: white;
+    border-color: #3b82f6;
 }
-
-.victim .r-tag {
-    background: #10b981;
-    color: white;
-}
-
-.r-name {
-    font-weight: 700;
-    flex: 1;
-}
-
-.r-count {
-    font-size: 0.75rem;
-    opacity: 0.8;
-}
-
-/* ===========================================
-   OPTIMIZACIÓN PARA MÓVIL (NUEVO MAZO)
-   =========================================== */
-
-@media (max-width: 480px) {
-
-    /* 1. Ajuste general del contenedor del modal */
-    .glass-modal.add-deck-modal {
-        padding: 15px !important;
-        /* Reducimos padding lateral y vertical */
-        border-radius: 20px !important;
-        max-height: 95vh;
-        /* Permitimos que use casi toda la pantalla */
-    }
-
-    /* 2. Cabecera más pequeña */
-    .modal-header {
-        margin-bottom: 12px !important;
-    }
-
-    .modal-header h3 {
-        font-size: 0.9rem !important;
-        letter-spacing: 1px;
-    }
-
-    /* 3. Compactar el formulario y grupos de input */
-    .magic-form {
-        gap: 10px !important;
-        /* Espacio mínimo entre filas */
-    }
-
-    .input-group {
-        gap: 2px !important;
-        /* Espacio mínimo entre label e input */
-    }
-
-    .input-group label {
-        font-size: 0.6rem !important;
-        margin-left: 2px !important;
-    }
-
-    /* 4. Forzar disposición horizontal en Formato/Comandante */
-    .grid-2-col {
-        grid-template-columns: 100px 1fr !important;
-        /* Ancho fijo para formato */
-        gap: 8px !important;
-    }
-
-    /* 5. Inputs y Selects ultra-compactos */
-    .magic-input {
-        padding: 8px 12px !important;
-        font-size: 0.8rem !important;
-        border-radius: 10px !important;
-        height: 38px !important;
-        /* Altura fija para consistencia */
-    }
-
-    /* 6. Selector de colores: Minimalista */
-    .color-picker-mini {
-        padding: 6px !important;
-        gap: 4px !important;
-        background: rgba(15, 23, 42, 0.8) !important;
-        border-radius: 12px !important;
-        justify-content: center !important;
-    }
-
-    .color-btn {
-        width: 30px !important;
-        height: 30px !important;
-        font-size: 0.8rem !important;
-        border-radius: 6px !important;
-        border-width: 1px !important;
-    }
-
-    .color-btn.active {
-        transform: scale(1.05) !important;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.4) !important;
-    }
-
-    /* 7. Botón de registro */
-    .btn-submit-magic {
-        padding: 10px !important;
-        font-size: 0.75rem !important;
-        margin-top: 5px !important;
-        border-radius: 10px !important;
-    }
-}
-
-/* Ajuste adicional para móviles muy cortos (como iPhone SE o similares) */
-@media (max-height: 700px) and (max-width: 480px) {
-    .glass-modal.add-deck-modal {
-        padding: 12px !important;
-    }
-
-    .magic-form {
-        gap: 6px !important;
-    }
-
-    .magic-input {
-        height: 34px !important;
-        padding: 6px 10px !important;
-    }
-}
-
-/* --- AJUSTE ESPECÍFICO PARA MÓVIL --- */
-@media (max-width: 480px) {
-    .modal-overlay {
-        /* Cambiamos el inicio del modal al borde superior */
-        align-items: flex-start;
-        /* Añadimos un padding superior para que no pegue al borde físico del dispositivo */
-        padding-top: 10px;
-        padding-bottom: 10px;
-    }
-
-    .glass-modal {
-        /* Eliminamos márgenes que puedan empujar el modal hacia abajo */
-        margin-top: 0;
-        /* Aseguramos que el modal no sea forzosamente más alto de lo necesario */
-        max-height: none;
-        /* Si el contenido aún así es largo, este margen asegura que el botón de guardar no toque el borde inferior */
-        margin-bottom: 20px;
-    }
-}
-
 </style>
