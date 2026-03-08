@@ -90,6 +90,7 @@ const downloadCSV = async (selectedFormat) => {
         const SEP = ",";
         let csvContent = "\uFEFF";
 
+        // --- SECCIÓN DE MAZOS ---
         csvContent += `--- SECCION: MIS MAZOS (${selectedFormat.toUpperCase()}) ---\n`;
         csvContent += `Nombre${SEP}Comandante/Arquetipo${SEP}Colores\n`;
 
@@ -100,15 +101,16 @@ const downloadCSV = async (selectedFormat) => {
         });
 
         csvContent += "\n\n";
-        const maxOpponents = 3;
-        let headerPartidas = `Fecha${SEP}Mazo Usado${SEP}Resultado`;
-        for (let i = 1; i <= maxOpponents; i++) { headerPartidas += `${SEP}Rival ${i}${SEP}Mazo Rival ${i}`; }
-        headerPartidas += `${SEP}Winrate Mazo (Momento)${SEP}Winrate Global (Momento)\n`;
+
+        // --- SECCIÓN DE HISTORIAL DE PARTIDAS ---
+        // Nueva Cabecera según tu orden solicitado
+        let headerPartidas = `Fecha${SEP}ID${SEP}Mi Usuario${SEP}Mi mazo${SEP}Rival 1${SEP}Mazo Rival 1${SEP}Rival 2${SEP}Mazo Rival 2${SEP}Rival 3${SEP}Mazo Rival 3${SEP}Mazo Ganador${SEP}Jugador Ganador${SEP}Resultado${SEP}Winrate Mazo (Momento)${SEP}Winrate Global (Momento)\n`;
 
         csvContent += `--- SECCION: HISTORIAL DE PARTIDAS (${selectedFormat.toUpperCase()}) ---\n`;
         csvContent += headerPartidas;
 
         const chronologicalHistory = [...filteredHistory].sort((a, b) => new Date(a.matches.fecha_partida) - new Date(b.matches.fecha_partida));
+
         let globalWins = 0;
         const deckWinsCounter = {};
         const deckTotalCounter = {};
@@ -116,39 +118,88 @@ const downloadCSV = async (selectedFormat) => {
         chronologicalHistory.forEach((match, index) => {
             const myDeck = match.deck_name_manual || 'Desconocido';
             const isWin = match.is_winner;
+
+            // Cálculos de Winrate
             if (isWin) globalWins++;
             const currentGlobalWinrate = ((globalWins / (index + 1)) * 100).toFixed(2);
             deckTotalCounter[myDeck] = (deckTotalCounter[myDeck] || 0) + 1;
             if (isWin) deckWinsCounter[myDeck] = (deckWinsCounter[myDeck] || 0) + 1;
             const currentDeckWinrate = ((deckWinsCounter[myDeck] / deckTotalCounter[myDeck]) * 100).toFixed(2);
 
-            const opponentsData = allParticipants?.filter(p => p.match_id === match.match_id && p.player_name_manual !== profile.value.username).map(p => {
-                let displayName = p.player_name_manual;
-                if (p.profiles) {
-                    const nick = p.profiles.username;
-                    const real = p.profiles.display_name;
-                    displayName = real ? `${nick} (${real})` : nick;
+            // Obtener todos los participantes de esta partida
+            const thisMatchParticipants = allParticipants?.filter(p => p.match_id === match.match_id) || [];
+
+            // Identificar Ganador (Mazo y Nombre)
+            const winner = thisMatchParticipants.find(p => p.is_winner);
+            let mazoGanador = winner ? (winner.deck_name_manual || "Desconocido") : "Empate/Desconocido";
+            let jugadorGanador = "Desconocido";
+
+            if (winner) {
+                if (winner.profiles) {
+                    const nick = winner.profiles.username;
+                    const real = winner.profiles.display_name;
+                    jugadorGanador = real ? `${nick} (${real})` : nick;
+                } else {
+                    jugadorGanador = winner.player_name_manual || "Desconocido";
                 }
-                return { name: displayName, deck: p.deck_name_manual || '?' };
-            }) || [];
+            }
+
+            // Separar Rivales (excluyéndome a mí)
+            const opponentsData = thisMatchParticipants
+                .filter(p => p.user_id !== profile.value.id)
+                .map(p => {
+                    let displayName = p.player_name_manual;
+                    if (p.profiles) {
+                        const nick = p.profiles.username;
+                        const real = p.profiles.display_name;
+                        displayName = real ? `${nick} (${real})` : nick;
+                    }
+                    return { name: displayName, deck: p.deck_name_manual || '?' };
+                });
 
             const soloFecha = new Date(match.matches.fecha_partida).toLocaleDateString('es-ES');
-            let rowArray = [soloFecha, myDeck, isWin ? "VICTORIA" : "DERROTA"];
-            for (let i = 0; i < maxOpponents; i++) {
-                if (opponentsData[i]) { rowArray.push(opponentsData[i].name, opponentsData[i].deck); }
-                else { rowArray.push("", ""); }
+
+            // Construcción del Array de la fila en el orden exacto pedido
+            let rowArray = [
+                soloFecha,                           // Fecha
+                match.match_id,                      // ID
+                profile.value.username,              // Mi Usuario
+                myDeck,                              // Mi mazo
+            ];
+
+            // Añadir Rivales (1 a 3)
+            for (let i = 0; i < 3; i++) {
+                if (opponentsData[i]) {
+                    rowArray.push(opponentsData[i].name, opponentsData[i].deck);
+                } else {
+                    rowArray.push("", ""); // Vacío si hay menos de 3 rivales
+                }
             }
-            rowArray.push(`${currentDeckWinrate}%`, `${currentGlobalWinrate}%`);
+
+            // Añadir resto de campos
+            rowArray.push(
+                mazoGanador,                         // Mazo Ganador
+                jugadorGanador,                      // Jugador Ganador
+                isWin ? "VICTORIA" : "DERROTA",      // Resultado
+                `${currentDeckWinrate}%`,            // Winrate Mazo
+                `${currentGlobalWinrate}%`           // Winrate Global
+            );
+
             csvContent += rowArray.map(text => `"${String(text).replace(/"/g, '""')}"`).join(SEP) + "\n";
         });
 
+        // Descarga del archivo
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
         link.download = `Reporte_${selectedFormat.toUpperCase()}_${profile.value.username}.csv`;
         link.click();
-    } catch (err) { alert("No se pudo generar el CSV"); }
+
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo generar el CSV de la partida");
+    }
 }
 
 const triggerImport = (format) => {
