@@ -915,12 +915,14 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     background: rgba(2, 6, 23, 0.9);
     backdrop-filter: blur(8px);
     display: flex;
-    align-items: center;
     justify-content: center;
+    /* Por defecto centrado en escritorio */
+    align-items: center;
     z-index: 2000;
     padding: 20px;
+    /* Importante: permite que si el modal es más alto que la pantalla, se pueda scrollear el overlay y no el contenido interno */
+    overflow-y: auto;
 }
-
 .glass-modal {
     background: #0f172a;
     padding: 35px;
@@ -1416,6 +1418,26 @@ html {
     .magic-input {
         height: 34px !important;
         padding: 6px 10px !important;
+    }
+}
+
+/* --- AJUSTE ESPECÍFICO PARA MÓVIL --- */
+@media (max-width: 480px) {
+    .modal-overlay {
+        /* Cambiamos el inicio del modal al borde superior */
+        align-items: flex-start;
+        /* Añadimos un padding superior para que no pegue al borde físico del dispositivo */
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .glass-modal {
+        /* Eliminamos márgenes que puedan empujar el modal hacia abajo */
+        margin-top: 0;
+        /* Aseguramos que el modal no sea forzosamente más alto de lo necesario */
+        max-height: none;
+        /* Si el contenido aún así es largo, este margen asegura que el botón de guardar no toque el borde inferior */
+        margin-bottom: 20px;
     }
 }
 
