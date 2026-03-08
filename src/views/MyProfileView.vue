@@ -90,7 +90,7 @@ const downloadCSV = async (selectedFormat) => {
         const SEP = ",";
         let csvContent = "\uFEFF";
 
-        // --- SECCIÓN DE MAZOS ---
+        // --- SECCIÓN: MIS MAZOS ---
         csvContent += `--- SECCION: MIS MAZOS (${selectedFormat.toUpperCase()}) ---\n`;
         csvContent += `Nombre${SEP}Comandante/Arquetipo${SEP}Colores\n`;
 
@@ -102,13 +102,13 @@ const downloadCSV = async (selectedFormat) => {
 
         csvContent += "\n\n";
 
-        // --- SECCIÓN DE HISTORIAL DE PARTIDAS ---
-        // Nueva Cabecera según tu orden solicitado
+        // --- SECCIÓN: HISTORIAL DE PARTIDAS ---
         let headerPartidas = `Fecha${SEP}ID${SEP}Mi Usuario${SEP}Mi mazo${SEP}Rival 1${SEP}Mazo Rival 1${SEP}Rival 2${SEP}Mazo Rival 2${SEP}Rival 3${SEP}Mazo Rival 3${SEP}Mazo Ganador${SEP}Jugador Ganador${SEP}Resultado${SEP}Winrate Mazo (Momento)${SEP}Winrate Global (Momento)\n`;
 
         csvContent += `--- SECCION: HISTORIAL DE PARTIDAS (${selectedFormat.toUpperCase()}) ---\n`;
         csvContent += headerPartidas;
 
+        // Ordenamos cronológicamente para que el ID 1 sea la partida más antigua
         const chronologicalHistory = [...filteredHistory].sort((a, b) => new Date(a.matches.fecha_partida) - new Date(b.matches.fecha_partida));
 
         let globalWins = 0;
@@ -126,12 +126,11 @@ const downloadCSV = async (selectedFormat) => {
             if (isWin) deckWinsCounter[myDeck] = (deckWinsCounter[myDeck] || 0) + 1;
             const currentDeckWinrate = ((deckWinsCounter[myDeck] / deckTotalCounter[myDeck]) * 100).toFixed(2);
 
-            // Obtener todos los participantes de esta partida
             const thisMatchParticipants = allParticipants?.filter(p => p.match_id === match.match_id) || [];
 
-            // Identificar Ganador (Mazo y Nombre)
+            // Identificar Ganador
             const winner = thisMatchParticipants.find(p => p.is_winner);
-            let mazoGanador = winner ? (winner.deck_name_manual || "Desconocido") : "Empate/Desconocido";
+            let mazoGanador = winner ? (winner.deck_name_manual || "Desconocido") : "Desconocido";
             let jugadorGanador = "Desconocido";
 
             if (winner) {
@@ -144,7 +143,7 @@ const downloadCSV = async (selectedFormat) => {
                 }
             }
 
-            // Separar Rivales (excluyéndome a mí)
+            // Rivales
             const opponentsData = thisMatchParticipants
                 .filter(p => p.user_id !== profile.value.id)
                 .map(p => {
@@ -159,36 +158,33 @@ const downloadCSV = async (selectedFormat) => {
 
             const soloFecha = new Date(match.matches.fecha_partida).toLocaleDateString('es-ES');
 
-            // Construcción del Array de la fila en el orden exacto pedido
+            // EL CAMBIO: El ID es (index + 1) para que sea 1, 2, 3...
             let rowArray = [
-                soloFecha,                           // Fecha
-                match.match_id,                      // ID
-                profile.value.username,              // Mi Usuario
-                myDeck,                              // Mi mazo
+                soloFecha,
+                index + 1,                          // ID incremental
+                profile.value.username,
+                myDeck,
             ];
 
-            // Añadir Rivales (1 a 3)
             for (let i = 0; i < 3; i++) {
                 if (opponentsData[i]) {
                     rowArray.push(opponentsData[i].name, opponentsData[i].deck);
                 } else {
-                    rowArray.push("", ""); // Vacío si hay menos de 3 rivales
+                    rowArray.push("", "");
                 }
             }
 
-            // Añadir resto de campos
             rowArray.push(
-                mazoGanador,                         // Mazo Ganador
-                jugadorGanador,                      // Jugador Ganador
-                isWin ? "VICTORIA" : "DERROTA",      // Resultado
-                `${currentDeckWinrate}%`,            // Winrate Mazo
-                `${currentGlobalWinrate}%`           // Winrate Global
+                mazoGanador,
+                jugadorGanador,
+                isWin ? "VICTORIA" : "DERROTA",
+                `${currentDeckWinrate}%`,
+                `${currentGlobalWinrate}%`
             );
 
             csvContent += rowArray.map(text => `"${String(text).replace(/"/g, '""')}"`).join(SEP) + "\n";
         });
 
-        // Descarga del archivo
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -198,7 +194,7 @@ const downloadCSV = async (selectedFormat) => {
 
     } catch (err) {
         console.error(err);
-        alert("No se pudo generar el CSV de la partida");
+        alert("No se pudo generar el CSV");
     }
 }
 
