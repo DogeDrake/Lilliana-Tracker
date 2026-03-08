@@ -84,7 +84,7 @@ const downloadCSV = async (selectedFormat) => {
         const matchIds = filteredHistory.map(h => h.match_id);
         const { data: allParticipants } = await supabase
             .from('match_participants')
-            .select(`match_id, player_name_manual, deck_name_manual, is_winner, user_id, profiles(username, display_name)`)
+            .select(`match_id, player_name_manual, deck_name_manual, is_winner, user_id, profiles(username)`)
             .in('match_id', matchIds);
 
         const SEP = ",";
@@ -108,7 +108,6 @@ const downloadCSV = async (selectedFormat) => {
         csvContent += `--- SECCION: HISTORIAL DE PARTIDAS (${selectedFormat.toUpperCase()}) ---\n`;
         csvContent += headerPartidas;
 
-        // Ordenamos cronológicamente para que el ID 1 sea la partida más antigua
         const chronologicalHistory = [...filteredHistory].sort((a, b) => new Date(a.matches.fecha_partida) - new Date(b.matches.fecha_partida));
 
         let globalWins = 0;
@@ -128,44 +127,32 @@ const downloadCSV = async (selectedFormat) => {
 
             const thisMatchParticipants = allParticipants?.filter(p => p.match_id === match.match_id) || [];
 
-            // Identificar Ganador
+            // Identificar Ganador (Solo Username)
             const winner = thisMatchParticipants.find(p => p.is_winner);
             let mazoGanador = winner ? (winner.deck_name_manual || "Desconocido") : "Desconocido";
-            let jugadorGanador = "Desconocido";
+            let jugadorGanador = winner
+                ? (winner.profiles?.username || winner.player_name_manual || "Desconocido")
+                : "Desconocido";
 
-            if (winner) {
-                if (winner.profiles) {
-                    const nick = winner.profiles.username;
-                    const real = winner.profiles.display_name;
-                    jugadorGanador = real ? `${nick} (${real})` : nick;
-                } else {
-                    jugadorGanador = winner.player_name_manual || "Desconocido";
-                }
-            }
-
-            // Rivales
+            // Rivales (Solo Usernames)
             const opponentsData = thisMatchParticipants
                 .filter(p => p.user_id !== profile.value.id)
-                .map(p => {
-                    let displayName = p.player_name_manual;
-                    if (p.profiles) {
-                        const nick = p.profiles.username;
-                        const real = p.profiles.display_name;
-                        displayName = real ? `${nick} (${real})` : nick;
-                    }
-                    return { name: displayName, deck: p.deck_name_manual || '?' };
-                });
+                .map(p => ({
+                    name: p.profiles?.username || p.player_name_manual || '?',
+                    deck: p.deck_name_manual || '?'
+                }));
 
             const soloFecha = new Date(match.matches.fecha_partida).toLocaleDateString('es-ES');
 
-            // EL CAMBIO: El ID es (index + 1) para que sea 1, 2, 3...
+            // Construcción de la fila
             let rowArray = [
                 soloFecha,
-                index + 1,                          // ID incremental
-                profile.value.username,
+                index + 1,                          // ID incremental (1, 2, 3...)
+                profile.value.username,              // Mi Usuario (Username limpio)
                 myDeck,
             ];
 
+            // Columnas de Rivales 1-3
             for (let i = 0; i < 3; i++) {
                 if (opponentsData[i]) {
                     rowArray.push(opponentsData[i].name, opponentsData[i].deck);
@@ -176,7 +163,7 @@ const downloadCSV = async (selectedFormat) => {
 
             rowArray.push(
                 mazoGanador,
-                jugadorGanador,
+                jugadorGanador,                      // Jugador Ganador (Username limpio)
                 isWin ? "VICTORIA" : "DERROTA",
                 `${currentDeckWinrate}%`,
                 `${currentGlobalWinrate}%`
