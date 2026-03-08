@@ -472,7 +472,7 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
             <section id="biblioteca" class="content-section">
                 <div class="section-header-bar">
                     <h2 class="section-title">Biblioteca de Mazos</h2>
-                    <button @click="showAddDeck = true" class="add-deck-btn">+ NUEVO</button>
+                    <button @click="showAddDeck = true" class="add-deck-btn">+ NUEVO MAZO</button>
                 </div>
                 <div class="decks-layout-grid horizontal-scroll-mobile">
                     <DeckCard v-for="deck in decks" :key="deck.id" :deck="deck" @click="openDecklist(deck.decklist_url)"
@@ -515,7 +515,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
                         <input v-model="newDeck.nombre_personalizado" class="magic-input" placeholder="Ej: Mi Mazo Pro"
                             required />
                     </div>
-
                     <div class="grid-2-col">
                         <div class="input-group">
                             <label>Formato</label>
@@ -528,22 +527,19 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
                             <label v-if="newDeck.formato === 'commander'">Comandante</label>
                             <label v-else>Arquetipo</label>
                             <input v-if="newDeck.formato === 'commander'" v-model="newDeck.comandante_nombre"
-                                class="magic-input" placeholder="Nombre de la carta..." />
+                                class="magic-input" placeholder="Nombre..." />
                             <input v-else v-model="newDeck.arquetipo_pauper" class="magic-input"
-                                placeholder="Ej: Burn, Elves..." />
+                                placeholder="Ej: Burn..." />
                         </div>
                     </div>
-
                     <div class="input-group">
-                        <label>URL Decklist (Moxfield, Archidekt...)</label>
+                        <label>URL Decklist</label>
                         <input v-model="newDeck.decklist_url" class="magic-input" placeholder="https://..." />
                     </div>
-
                     <div class="input-group">
-                        <label>URL Imagen Arte (Para la portada)</label>
-                        <input v-model="newDeck.image_url" class="magic-input" placeholder="https://.../art.jpg" />
+                        <label>URL Imagen Arte</label>
+                        <input v-model="newDeck.image_url" class="magic-input" placeholder="https://..." />
                     </div>
-
                     <div class="input-group">
                         <label>Colores / Identidad</label>
                         <div class="color-picker-mini">
@@ -553,7 +549,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
                             </button>
                         </div>
                     </div>
-
                     <button @click="createDeck" class="btn-submit-magic" :disabled="isSubmitting">
                         {{ isSubmitting ? 'FORJANDO...' : 'REGISTRAR MAZO' }}
                     </button>
@@ -581,8 +576,7 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
                     </div>
                     <button @click="showDeckStats = false" class="close-btn-styled">✕</button>
                 </div>
-                <div v-if="selectedDeckStats.empty" class="p-4 text-center">No hay partidas registradas para este mazo.
-                </div>
+                <div v-if="selectedDeckStats.empty" class="p-4 text-center">No hay partidas registradas.</div>
                 <div v-else class="stats-grid-container">
                     <div class="main-metrics">
                         <div class="metric-card">
@@ -617,8 +611,10 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
                 <p class="modal-intro-text">Gestiona tus registros de partidas.</p>
                 <div class="export-options-grid export-options-stack">
                     <div class="format-action-card" v-for="fmt in ['commander', 'pauper']" :key="fmt">
-                        <span class="opt-icon">{{ fmt === 'commander' ? '👑' : '🛡️' }}</span>
-                        <span class="opt-title">{{ fmt.toUpperCase() }}</span>
+                        <div class="card-info-side">
+                            <span class="opt-icon">{{ fmt === 'commander' ? '👑' : '🛡️' }}</span>
+                            <span class="opt-title">{{ fmt.toUpperCase() }}</span>
+                        </div>
                         <div class="action-buttons-row">
                             <button @click="downloadCSV(fmt)" class="btn-mini-action export">Exportar</button>
                             <button @click="triggerImport(fmt)" class="btn-mini-action import">Importar</button>
@@ -626,7 +622,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 </template>
@@ -645,7 +640,7 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     padding: 20px;
 }
 
-/* HEADER */
+/* --- HEADER & HERO --- */
 .top-bar {
     display: flex;
     justify-content: space-between;
@@ -680,11 +675,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     transition: 0.2s;
 }
 
-.export-btn:hover {
-    background: #3b82f6;
-    color: white;
-}
-
 .logout-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -702,10 +692,12 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     margin-bottom: 35px;
 }
 
+/* CORRECCIÓN AVATAR: Se añade flex-shrink y se ajusta el tamaño en móvil */
 .avatar-wrapper {
     position: relative;
     width: 100px;
     height: 100px;
+    flex-shrink: 0;
     cursor: pointer;
 }
 
@@ -768,7 +760,7 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     letter-spacing: 1px;
 }
 
-/* STATS RÁPIDAS */
+/* --- STATS RÁPIDAS --- */
 .quick-stats-row {
     display: flex;
     gap: 12px;
@@ -799,7 +791,7 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     font-weight: 800;
 }
 
-/* SECCIONES */
+/* --- SECCIONES & MAZOS --- */
 .section-header-bar {
     display: flex;
     justify-content: space-between;
@@ -816,10 +808,6 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     margin-bottom: 0;
 }
 
-.history-section-spacer {
-    margin-top: 60px;
-}
-
 .add-deck-btn {
     background: #3b82f6;
     color: white;
@@ -832,18 +820,17 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     transition: 0.2s;
 }
 
-.add-deck-btn:hover {
-    background: #2563eb;
-    transform: translateY(-2px);
-}
-
 .decks-layout-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
 }
 
-/* HISTORIAL */
+/* --- HISTORIAL (RESTABLECIDO) --- */
+.history-section-spacer {
+    margin-top: 60px;
+}
+
 .history-list {
     background: rgba(15, 23, 42, 0.4);
     border-radius: 20px;
@@ -919,8 +906,71 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     opacity: 1;
 }
 
-/* MODALES */
-/* MODAL STATS (ESTILOS RECUPERADOS) */
+/* --- MODALES & FORMULARIOS --- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.9);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.glass-modal {
+    background: #0f172a;
+    padding: 35px;
+    border-radius: 28px;
+    width: 100%;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    max-width: 500px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 25px;
+}
+
+.close-btn-styled {
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.magic-input {
+    background: #1e293b;
+    border: 1px solid #334155;
+    padding: 14px;
+    border-radius: 12px;
+    color: white;
+    width: 100%;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.btn-submit-magic {
+    width: 100%;
+    padding: 16px;
+    background: #3b82f6;
+    border-radius: 12px;
+    color: white;
+    font-weight: 900;
+    border: none;
+    cursor: pointer;
+}
+
+/* --- STATS MODAL --- */
 .stats-modal-large {
     max-width: 450px !important;
 }
@@ -930,14 +980,12 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     font-weight: 900;
     color: #3b82f6;
     text-transform: uppercase;
-    letter-spacing: 1px;
 }
 
 .stats-grid-container {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    margin-top: 10px;
 }
 
 .main-metrics {
@@ -1012,70 +1060,168 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     font-weight: 800;
 }
 
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(2, 6, 23, 0.9);
-    backdrop-filter: blur(8px);
+/* --- CORRECCIÓN MODAL CSV --- */
+.export-selection-modal {
+    max-width: 550px !important;
+}
+
+.export-options-stack {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.format-action-card {
+    background: rgba(30, 41, 59, 0.5);
     padding: 20px;
-}
-
-.glass-modal {
-    background: #0f172a;
-    padding: 35px;
-    border-radius: 28px;
-    width: 100%;
+    border-radius: 18px;
     border: 1px solid rgba(59, 130, 246, 0.2);
-    max-width: 500px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-}
-
-.modal-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 25px;
+    /* Empuja contenido a los extremos */
+    align-items: center;
 }
 
-.close-btn-styled {
-    background: rgba(255, 255, 255, 0.05);
-    border: none;
-    color: white;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+.card-info-side {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.action-buttons-row {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.btn-mini-action {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.65rem;
+    font-weight: 900;
+    text-transform: uppercase;
     cursor: pointer;
+    border: none;
+    min-width: 90px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.magic-input {
-    background: #1e293b;
-    border: 1px solid #334155;
-    padding: 14px;
-    border-radius: 12px;
-    color: white;
-    width: 100%;
-    margin-bottom: 15px;
-}
-
-.btn-submit-magic {
-    width: 100%;
-    padding: 16px;
+.btn-mini-action.export {
     background: #3b82f6;
-    border-radius: 12px;
     color: white;
-    font-weight: 900;
-    border: none;
-    cursor: pointer;
 }
 
-/* CARGA */
+.btn-mini-action.import {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border: 1px solid #10b981;
+}
+
+/* --- OTROS ESTILOS --- */
+.mobile-nav-pills {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.pill-link {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #60a5fa;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+.color-picker-mini {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0;
+    flex-wrap: wrap;
+}
+
+.color-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 2px solid #334155;
+    background: #1e293b;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    filter: grayscale(1);
+    opacity: 0.6;
+}
+
+.color-btn.active {
+    filter: grayscale(0);
+    opacity: 1;
+    border-color: #3b82f6;
+    transform: scale(1.1);
+}
+
+/* --- RESPONSIVE ADAPTATIONS --- */
+@media (max-width: 768px) {
+    .hero-section {
+        gap: 15px;
+    }
+
+    .avatar-wrapper {
+        width: 80px;
+        height: 80px;
+    }
+
+    .username-title {
+        font-size: 1.8rem;
+    }
+
+    .format-action-card {
+        flex-direction: column;
+        /* En móvil apilamos para que no se salga el texto */
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .card-info-side {
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+
+    .action-buttons-row {
+        width: 100%;
+    }
+
+    .btn-mini-action {
+        flex: 1;
+    }
+
+    .horizontal-scroll-mobile {
+        display: flex !important;
+        overflow-x: auto;
+        gap: 15px;
+        padding-bottom: 15px;
+        scroll-snap-type: x mandatory;
+    }
+
+    .horizontal-scroll-mobile>* {
+        flex: 0 0 280px;
+        scroll-snap-align: start;
+    }
+
+    .glass-modal {
+        padding: 20px;
+    }
+}
+
+/* --- ANIMACIONES --- */
 .loading-overlay {
     position: fixed;
     inset: 0;
@@ -1102,6 +1248,10 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     }
 }
 
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -1112,399 +1262,23 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
     }
 }
 
-.fade-in {
-    animation: fadeIn 0.5s ease-out;
-}
-
-.magic-input {
-    background: #1e293b;
-    border: 1px solid #334155;
-    padding: 14px;
-    border-radius: 12px;
-    color: white;
-    width: 100%;
-    margin-bottom: 15px;
-    font-size: 0.9rem;
-}
-
-.btn-submit-magic {
-    width: 100%;
-    padding: 16px;
-    background: #3b82f6;
-    border-radius: 12px;
-    color: white;
-    font-weight: 900;
-    border: none;
-    cursor: pointer;
-    margin-top: 10px;
-}
-
-/* ANIMACIONES */
-.fade-in {
-    animation: fadeIn 0.5s ease-out;
-}
-
 .fade-in-up {
     animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
 
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
-/* --- ESTILOS CORREGIDOS PARA LA CABECERA DEL MODAL --- */
-
-.modal-header {
-    display: flex;
-    /* Alinea hijos en fila */
-    justify-content: space-between;
-    /* Empuja el título a la izquierda y la X a la derecha */
-    align-items: flex-start;
-    /* Alinea al tope superior */
-    width: 100%;
-    margin-bottom: 25px;
-    /* Espacio con el contenido de abajo */
-}
-
-.header-titles {
-    display: flex;
-    flex-direction: column;
-    /* Mantiene el tag arriba y el nombre abajo */
-    gap: 4px;
-}
-
-.close-btn-styled {
-    background: rgba(255, 255, 255, 0.05);
-    border: none;
-    color: white;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    /* Centra la X dentro del círculo */
-    align-items: center;
-    justify-content: center;
-    transition: 0.2s;
-    flex-shrink: 0;
-    /* Evita que el botón se deforme si el título es largo */
-}
-
-.close-btn-styled:hover {
-    background: rgba(239, 68, 68, 0.2);
-    /* Rojo suave al pasar el ratón */
-    color: #f87171;
-}
-
-/* --- CORRECCIÓN COLOR PICKER MINI --- */
-
-.color-picker-mini {
-    display: flex;
-    gap: 8px;
-    padding: 10px 0;
-    flex-wrap: wrap;
-}
-
-.color-btn {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    border: 2px solid #334155;
-    background: #1e293b;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    filter: grayscale(1);
-    /* Desactivados por defecto */
-    opacity: 0.6;
-}
-
-.color-btn:hover {
-    transform: scale(1.1);
-    border-color: #475569;
-    opacity: 1;
-}
-
-/* Estado Activo (Seleccionado) */
-.color-btn.active {
-    filter: grayscale(0);
-    opacity: 1;
-    border-color: #3b82f6;
-    background: #1e293b;
-    box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
-    transform: scale(1.1);
-}
-
-/* Colores específicos para el borde cuando están activos */
-.color-btn.active:nth-child(1) {
-    border-color: #fef3c7;
-    box-shadow: 0 0 10px #fef3c7;
-}
-
-/* Blanco/W */
-.color-btn.active:nth-child(2) {
-    border-color: #3b82f6;
-    box-shadow: 0 0 10px #3b82f6;
-}
-
-/* Azul/U */
-.color-btn.active:nth-child(3) {
-    border-color: #a855f7;
-    box-shadow: 0 0 10px #a855f7;
-}
-
-/* Negro/B */
-.color-btn.active:nth-child(4) {
-    border-color: #ef4444;
-    box-shadow: 0 0 10px #ef4444;
-}
-
-/* Rojo/R */
-.color-btn.active:nth-child(5) {
-    border-color: #22c55e;
-    box-shadow: 0 0 10px #22c55e;
-}
-
-/* Verde/G */
-.color-btn.active:nth-child(6) {
-    border-color: #94a3b8;
-    box-shadow: 0 0 10px #94a3b8;
-}
-
-
-.input-group label {
-    display: block;
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    color: #64748b;
-    margin-bottom: 8px;
-    letter-spacing: 0.5px;
-}
-
-.grid-2-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-}
-
-.modal-intro-text {
-    color: #94a3b8;
-    font-size: 0.85rem;
-    margin-bottom: 25px;
-    text-align: center;
-}
-
-.export-options-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-}
-
-.export-option-card {
-    background: rgba(30, 41, 59, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 20px;
-    border-radius: 16px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    transition: all 0.3s ease;
-    color: white;
-}
-
-.export-option-card:hover {
-    background: rgba(59, 130, 246, 0.1);
-    border-color: #3b82f6;
-    transform: translateY(-3px);
-}
-
-.opt-icon {
-    font-size: 2rem;
-    margin-bottom: 10px;
-}
-
-.opt-title {
-    font-weight: 900;
-    font-size: 1rem;
-    text-transform: uppercase;
-    margin-bottom: 5px;
-}
-
-.commander-opt .opt-title { color: #facc15; } /* Dorado */
-.pauper-opt .opt-title { color: #60a5fa; }    /* Azul */
-
-.opt-desc {
-    font-size: 0.65rem;
-    color: #64748b;
-    line-height: 1.4;
-}
-
-/* Ajuste para que el modal no sea demasiado ancho */
-.export-selection-modal {
-    max-width: 550px !important;
-}
-    .format-action-card {
-    background: rgba(30, 41, 59, 0.5);
-    padding: 20px;
-    border-radius: 18px;
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-}
-
-.action-buttons-row {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-}
-
-.btn-mini-action {
-    flex: 1;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 0.65rem;
-    font-weight: 900;
-    text-transform: uppercase;
-    cursor: pointer;
-    border: none;
-    transition: 0.2s;
-}
-
-.btn-mini-action.export {
-    background: #3b82f6;
-    color: white;
-}
-
-.btn-mini-action.import {
-    background: rgba(16, 185, 129, 0.2);
-    color: #10b981;
-    border: 1px solid #10b981;
-}
-
-.btn-mini-action:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.2);
-}
-/* --- NUEVAS MEJORAS DE VELOCIDAD Y MÓVIL --- */
-
-/* Píldoras de navegación rápida */
-.mobile-nav-pills {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-    padding-bottom: 5px;
-}
-
-.pill-link {
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    color: #60a5fa;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    text-decoration: none;
-    text-transform: uppercase;
-    transition: 0.2s;
-}
-
-.pill-link:hover {
-    background: #3b82f6;
-    color: white;
-}
-
-/* Scroll Horizontal en Mazos para Móvil */
-@media (max-width: 768px) {
-    .horizontal-scroll-mobile {
-        display: flex !important;
-        overflow-x: auto;
-        gap: 15px;
-        padding-bottom: 15px;
-        scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .horizontal-scroll-mobile>* {
-        flex: 0 0 280px;
-        /* Tamaño fijo para que se vea el siguiente */
-        scroll-snap-align: start;
-    }
-
-    /* Reducción de fuentes y paddings en móvil */
-    .username-title {
-        font-size: 1.8rem;
-    }
-
-    .hero-section {
-        gap: 15px;
-    }
-
-    .q-num {
-        font-size: 1.2rem;
-    }
-
-    .q-stat {
-        padding: 10px;
-    }
-
-    /* Modal "Stack" (Apilado) */
-    .export-options-stack {
-        display: flex !important;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .format-action-card {
-        flex-direction: row !important;
-        justify-content: space-between;
-        padding: 15px;
-    }
-
-    .format-action-card .opt-icon {
-        font-size: 1.2rem;
-        margin: 0;
-    }
-
-    .format-action-card .action-buttons-row {
-        width: auto;
-        flex: 0 0 160px;
-    }
-
-    /* Ajuste de sección histórica */
-    .history-section-spacer {
-        margin-top: 30px;
-    }
-}
-
-/* Suavizar scroll al usar anclas */
 html {
     scroll-behavior: smooth;
-}
-
-/* Refactorización Modal Datos para toque fácil */
-.btn-mini-action {
-    min-height: 40px;
-    /* Altura mínima para pulgares */
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 </style>
