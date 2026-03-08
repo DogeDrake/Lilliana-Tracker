@@ -194,10 +194,9 @@ const processImport = async (event, selectedFormat) => {
                 if (!fechaStr) continue;
 
                 // Formateo de fecha DD/MM/YYYY a YYYY-MM-DD
-                const [d, m, y] = fechaStr.split('/');
+                const [d, m, y] = row[0].split('/');
                 const fechaISO = `${y}-${m}-${d}`;
 
-                // 1. Crear la Partida
                 const { data: matchData, error: mErr } = await supabase
                     .from('matches')
                     .insert([{
@@ -211,35 +210,33 @@ const processImport = async (event, selectedFormat) => {
 
                 // 2. Preparar participantes
                 const participants = [];
-                // El ganador se determina comparando con la columna de Resultado (row[2]) 
-                // o buscando si alguien coincide con un campo de ganador si lo tienes
-                const winnerText = row[2];
+                const nombreGanador = row[9]; // Columna "Ganador"
 
-                // AÑADIRTE A TI (Siempre vinculado)
+                // TU PERFIL
                 participants.push({
                     match_id: matchData.id,
                     player_name_manual: profile.value.username,
-                    deck_name_manual: row[1],
-                    is_winner: winnerText.toUpperCase() === 'VICTORIA',
+                    deck_name_manual: row[2], // <--- CAMBIADO: Antes era row[1], ahora es row[2] para saltar el ID
+                    is_winner: row[11]?.toUpperCase() === 'VICTORIA', // Columna "Resultado"
                     user_id: profile.value.id
                 });
 
-                // AÑADIR RIVALES (Buscando sus IDs)
+                // RIVALES (Índices ajustados a tu CSV: Rival 1 es col 3, Rival 2 es col 5...)
                 const rivalCols = [[3, 4], [5, 6], [7, 8]];
                 for (const [nameIdx, deckIdx] of rivalCols) {
                     const rName = row[nameIdx];
                     const rDeck = row[deckIdx];
 
-                    if (rName) {
-                        // BUSCAMOS SI EL RIVAL EXISTE EN LA PLATAFORMA
+                    if (rName && rName !== "") {
                         const linkedId = await findUserIdByUsername(rName);
 
                         participants.push({
                             match_id: matchData.id,
                             player_name_manual: rName,
                             deck_name_manual: rDeck || 'Desconocido',
-                            is_winner: winnerText.toUpperCase() === 'DERROTA', // Lógica simple: si tú pierdes, ellos ganan (ajustar si es multiplayer)
-                            user_id: linkedId // Aquí se guarda el ID si se encontró
+                            // Ganador por nombre o porque tú perdiste (si es 1 vs 1)
+                            is_winner: rName === nombreGanador,
+                            user_id: linkedId
                         });
                     }
                 }
