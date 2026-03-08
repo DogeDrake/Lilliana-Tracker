@@ -308,7 +308,7 @@ const openStats = async (deck) => {
     const nemesisMap = {}, victimMap = {};
     deckMatches.forEach(dm => {
         opponents?.filter(o => o.match_id === dm.match_id).forEach(opp => {
-            const name = opp.player_name_manual || 'Anónimo';
+            const name = opp.player_name_manual || 'Otro';
             if (dm.is_winner) victimMap[name] = (victimMap[name] || 0) + 1;
             else if (opp.is_winner) nemesisMap[name] = (nemesisMap[name] || 0) + 1;
         });

@@ -31,7 +31,7 @@
                                 {{ p.profiles.username }}
                             </router-link>
 
-                            <span v-else-if="p.player_name_manual && p.player_name_manual.toLowerCase() !== 'anónimo'">
+                            <span v-else-if="p.player_name_manual && p.player_name_manual.toLowerCase() !== 'Otro'">
                                 {{ p.player_name_manual }}
                             </span>
 

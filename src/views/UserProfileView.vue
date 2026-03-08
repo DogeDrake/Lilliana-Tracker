@@ -106,7 +106,7 @@ const openStats = async (deck) => {
     deckMatches.forEach(dm => {
         const gameOpponents = opponents?.filter(o => o.match_id === dm.match_id) || [];
         gameOpponents.forEach(opp => {
-            const name = opp.player_name_manual || 'Anónimo';
+            const name = opp.player_name_manual || 'Otro';
             if (dm.is_winner) {
                 victimMap[name] = (victimMap[name] || 0) + 1;
             } else if (opp.is_winner) {
