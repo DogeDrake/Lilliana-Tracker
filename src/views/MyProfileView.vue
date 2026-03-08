@@ -162,15 +162,46 @@ const processImport = async (event, selectedFormat) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
         const content = e.target.result;
-        // ... (lógica de procesado de líneas y filas igual que antes) ...
+        const lines = content.split(/\r?\n/).filter(line => line.trim() !== '');
+
+        const rows = lines.map(line => {
+            const columns = [];
+            let current = '';
+            let inQuotes = false;
+            for (let char of line) {
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) {
+                    columns.push(current.trim());
+                    current = '';
+                } else current += char;
+            }
+            columns.push(current.trim());
+            return columns.map(col => col.replace(/^"|"$/g, '').replace(/""/g, '"'));
+        })
+            .filter(row => row.length > 5 && row[0].toLowerCase() !== 'fecha');
+
+        if (rows.length === 0) {
+            alert("No se encontraron partidas válidas.");
+            return;
+        }
+
+        isSubmitting.value = true;
+        let importedCount = 0;
 
         try {
             for (const row of rows) {
-                // Índices del CSV: [0]Fecha, [2]UsuarioCSV, [3]MazoCSV, [10]MazoGanador, [11]JugadorGanador
-                const [d, m, y] = row[0].split('/');
+                /* NUEVOS ÍNDICES DEL CSV:
+                   [0] Fecha, [1] ID, [2] Mi Usuario, [3] Mi mazo, [4] Rival 1, [5] Mazo Rival 1...
+                   [10] Mazo Ganador, [11] Jugador Ganador, [12] Resultado
+                */
+
+                const fechaStr = row[0];
+                if (!fechaStr) continue;
+
+                const [d, m, y] = fechaStr.split('/');
                 const fechaISO = `${y}-${m}-${d}`;
 
-                // 1. Crear la partida a nombre del usuario que ESTÁ LOGUEADO
+                // 1. Crear la Partida (el creador es el usuario logueado actualmente)
                 const { data: matchData, error: mErr } = await supabase
                     .from('matches')
                     .insert([{
@@ -183,52 +214,60 @@ const processImport = async (event, selectedFormat) => {
                 if (mErr) throw mErr;
 
                 const participants = [];
+                const nombreJugadorPrincipalCSV = row[2]?.trim(); // El nombre que aparece en "Mi Usuario"
+                const mazoJugadorPrincipalCSV = row[3]?.trim();  // El nombre que aparece en "Mi mazo"
                 const mazoGanadorCSV = row[10]?.trim();
                 const jugadorGanadorCSV = row[11]?.trim();
 
-                // 2. IDENTIFICAR AL JUGADOR PRINCIPAL
-                // En lugar de comparar nombres, asumimos que el "Jugador Principal" 
-                // de la fila es quien está subiendo el archivo.
-                const miNombreEnCSV = row[2]?.trim();
-                const miMazoEnCSV = row[3]?.trim();
-
+                // 2. AÑADIR AL USUARIO QUE ESTÁ SUBIENDO EL ARCHIVO
+                // Independientemente de lo que diga el CSV, este registro es para el usuario logueado
                 participants.push({
                     match_id: matchData.id,
-                    player_name_manual: profile.value.username, // Usamos su nick real de la app
-                    deck_name_manual: miMazoEnCSV,
-                    // Gana si el nombre en esa celda coincide con el ganador del CSV
-                    is_winner: miNombreEnCSV === jugadorGanadorCSV || miMazoEnCSV === mazoGanadorCSV,
+                    player_name_manual: profile.value.username, // Su nombre real en la app
+                    deck_name_manual: mazoJugadorPrincipalCSV,
+                    // Gana si el nombre en la columna "Jugador Ganador" coincide con el de "Mi Usuario"
+                    // o si el mazo en "Mazo Ganador" coincide con el de "Mi mazo"
+                    is_winner: nombreJugadorPrincipalCSV === jugadorGanadorCSV || mazoJugadorPrincipalCSV === mazoGanadorCSV,
                     user_id: profile.value.id
                 });
 
-                // 3. RIVALES (Columnas 4-5, 6-7, 8-9)
+                // 3. AÑADIR RIVALES (Columnas 4-5, 6-7, 8-9)
                 const rivalIndices = [[4, 5], [6, 7], [8, 9]];
-                for (const [nIdx, dIdx] of rivalIndices) {
-                    const rName = row[nIdx]?.trim();
-                    const rDeck = row[dIdx]?.trim();
+                for (const [nameIdx, deckIdx] of rivalIndices) {
+                    const rName = row[nameIdx]?.trim();
+                    const rDeck = row[deckIdx]?.trim();
 
-                    if (rName) {
-                        // Si el rival se llama igual que el usuario logueado, lo saltamos 
-                        // (porque ya lo añadimos como participante principal arriba)
-                        if (rName === profile.value.username) continue;
+                    if (rName && rName !== "") {
+                        // Si el rival se llama igual que el usuario logueado, lo saltamos para no duplicar
+                        if (rName.toLowerCase() === profile.value.username.toLowerCase()) continue;
 
                         const linkedId = await findUserIdByUsername(rName);
+
                         participants.push({
                             match_id: matchData.id,
                             player_name_manual: rName,
                             deck_name_manual: rDeck || 'Desconocido',
+                            // El rival gana si su nombre o su mazo coinciden con los del ganador
                             is_winner: rName === jugadorGanadorCSV || (rDeck === mazoGanadorCSV && rDeck !== ""),
                             user_id: linkedId
                         });
                     }
                 }
 
-                await supabase.from('match_participants').insert(participants);
+                const { error: pErr } = await supabase.from('match_participants').insert(participants);
+                if (pErr) throw pErr;
+
                 importedCount++;
             }
-            alert("Importación universal completada.");
+
+            alert(`¡Éxito! Se han importado ${importedCount} partidas.`);
+            showExportModal.value = false;
+            await fetchStatsAndHistory(profile.value.id, profile.value.username);
+
         } catch (err) {
-            alert("Error: " + err.message);
+            alert("Error al importar: " + err.message);
+        } finally {
+            isSubmitting.value = false;
         }
     };
     reader.readAsText(file);
