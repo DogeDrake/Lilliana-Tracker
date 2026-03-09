@@ -119,15 +119,16 @@ const resetGame = () => {
 
                     <div v-if="activeCommanderPanel === player.id" class="cmd-overlay">
                         <div class="cmd-header">
-                            <span>Daño Comandante</span>
-                            <button @click="activeCommanderPanel = null">✕</button>
+                            <span>Comandante</span>
+                            <button class="close-btn" @click="activeCommanderPanel = null">✕</button>
                         </div>
                         <div class="cmd-list">
                             <div v-for="opp in players.filter(p => p.id !== player.id)" :key="opp.id" class="cmd-row">
                                 <div class="opp-indicator" :style="{ background: opp.color }"></div>
                                 <div class="cmd-actions">
-                                    <button @click.stop="updateCommanderDamage(index, opp.id, -1)">-</button>
-                                    <span :class="{ danger: (player.commanderDamage[opp.id] || 0) >= 18 }">
+                                    <button @click.stop="updateCommanderDamage(index, opp.id, -1)">−</button>
+                                    <span class="cmd-value"
+                                        :class="{ danger: (player.commanderDamage[opp.id] || 0) >= 18 }">
                                         {{ player.commanderDamage[opp.id] || 0 }}
                                     </span>
                                     <button @click.stop="updateCommanderDamage(index, opp.id, 1)">+</button>
@@ -152,6 +153,7 @@ const resetGame = () => {
     overflow: hidden;
     position: fixed;
     inset: 0;
+    font-family: system-ui, -apple-system, sans-serif;
 }
 
 .game-board {
@@ -234,7 +236,7 @@ const resetGame = () => {
     width: 100%;
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: 12px;
     pointer-events: none;
     box-sizing: border-box;
 }
@@ -247,7 +249,7 @@ const resetGame = () => {
 
 .status-pills {
     display: flex;
-    gap: 6px;
+    gap: 8px;
 }
 
 .pill {
@@ -255,7 +257,7 @@ const resetGame = () => {
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
     border-radius: 8px;
-    padding: 6px 10px;
+    padding: 6px 12px;
     font-weight: 800;
     font-size: 0.85rem;
     backdrop-filter: blur(8px);
@@ -276,14 +278,14 @@ const resetGame = () => {
 }
 
 .p-tag {
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 900;
-    opacity: 0.5;
+    opacity: 0.4;
     letter-spacing: 2px;
 }
 
 .p-life {
-    font-size: clamp(3.5rem, 15vh, 9rem);
+    font-size: clamp(3rem, 18vh, 10rem);
     font-weight: 900;
     line-height: 1;
 }
@@ -301,56 +303,63 @@ const resetGame = () => {
     align-items: center;
     justify-content: center;
     font-size: 3rem;
-    opacity: 0.05;
+    opacity: 0;
 }
 
-/* AJUSTES CRÍTICOS PARA EL OVERLAY DEL COMANDANTE */
+/* --- CORRECCIÓN DEL FLEX PARA EL DAÑO DE COMANDANTE --- */
 .cmd-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.92);
+    background: rgba(0, 0, 0, 0.94);
     z-index: 50;
     display: flex;
     flex-direction: column;
-    padding: 8px;
+    padding: 10px;
 }
 
 .cmd-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: 900;
-    font-size: 0.75rem;
+    padding: 4px 8px;
     margin-bottom: 8px;
-    text-transform: uppercase;
 }
 
-.cmd-header button {
-    background: none;
+.cmd-header span {
+    font-weight: 900;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.close-btn {
+    background: #333;
     border: none;
     color: #fff;
-    font-size: 1.2rem;
-    padding: 0 5px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 1rem;
 }
 
 .cmd-list {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    justify-content: center;
-    /* Centra los oponentes si hay pocos */
+    gap: 8px;
+    justify-content: space-around;
+    /* Distribuye las filas equitativamente */
 }
 
 .cmd-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    padding: 6px 10px;
-    border-radius: 10px;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px 12px;
+    border-radius: 12px;
     height: 28%;
-    /* Forzamos a que quepan 3 filas cómodamente */
+    /* Asegura que 3 filas quepan siempre */
 }
 
 .cmd-actions {
@@ -362,29 +371,35 @@ const resetGame = () => {
 }
 
 .cmd-actions button {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
     border: none;
     font-weight: 900;
-    font-size: 1.1rem;
-    background: #fff;
+    font-size: 1.4rem;
+    background: #eee;
     color: #000;
 }
 
-.cmd-actions span {
+.cmd-actions button:active {
+    background: #fff;
+    transform: scale(0.95);
+}
+
+.cmd-value {
     font-weight: 900;
-    font-size: 1.1rem;
-    min-width: 30px;
+    font-size: 1.3rem;
+    min-width: 40px;
     text-align: center;
 }
 
 .opp-indicator {
-    width: 10px;
+    width: 8px;
     height: 100%;
-    min-height: 25px;
-    border-radius: 3px;
+    border-radius: 4px;
 }
+
+/* --------------------------------------------------- */
 
 .center-menu-btn {
     position: absolute;
@@ -410,28 +425,29 @@ const resetGame = () => {
 
 .setup-box {
     background: rgba(255, 255, 255, 0.05);
-    padding: 20px;
-    border-radius: 20px;
-    width: 260px;
+    padding: 24px;
+    border-radius: 24px;
+    width: 280px;
+    text-align: center;
 }
 
 .setup-box p {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
-    margin: 12px 0 6px;
+    margin: 16px 0 8px;
     opacity: 0.6;
-    font-weight: 700;
+    font-weight: 800;
 }
 
 .selector-row {
     display: flex;
-    gap: 6px;
+    gap: 8px;
 }
 
 .selector-row button {
     flex: 1;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 12px;
+    border-radius: 10px;
     border: none;
     background: #1e293b;
     color: white;
@@ -444,13 +460,14 @@ const resetGame = () => {
 
 .start-btn {
     width: 100%;
-    margin-top: 20px;
-    padding: 15px;
-    border-radius: 10px;
+    margin-top: 24px;
+    padding: 16px;
+    border-radius: 12px;
     background: #3b82f6;
     border: none;
     color: white;
     font-weight: 900;
+    font-size: 1rem;
 }
 
 .is-dead {
@@ -459,5 +476,6 @@ const resetGame = () => {
 
 .danger {
     color: #ff4444;
+    text-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
 }
 </style>
