@@ -120,10 +120,6 @@ const goBack = () => router.push('/')
     grid-template-rows: 1fr 1fr;
 }
 
-.players-2 .player-zone:nth-child(1) .player-container-inner {
-    transform: rotate(180deg);
-}
-
 .players-3,
 .players-4 {
     grid-template-columns: 1fr 1fr;
@@ -134,12 +130,15 @@ const goBack = () => router.push('/')
     grid-column: span 2;
 }
 
-.players-3 .player-zone:nth-child(1) .player-container-inner {
-    transform: rotate(180deg);
-}
+/* ROTACIONES MODO MESA (MÓVIL VERTICAL) */
+@media (orientation: portrait) {
+    .players-2 .player-zone:nth-child(1) .player-container-inner {
+        transform: rotate(180deg);
+    }
 
-/* ROTACIONES MODO MESA */
-@media (orientation:portrait) {
+    .players-3 .player-zone:nth-child(1) .player-container-inner {
+        transform: rotate(180deg);
+    }
 
     .players-4 .player-zone:nth-child(odd) .player-container-inner,
     .players-3 .player-zone:nth-child(2) .player-container-inner {
@@ -149,6 +148,22 @@ const goBack = () => router.push('/')
     .players-4 .player-zone:nth-child(even) .player-container-inner,
     .players-3 .player-zone:nth-child(3) .player-container-inner {
         transform: rotate(-90deg);
+    }
+}
+
+/* ROTACIONES MODO ESCRITORIO / HORIZONTAL */
+@media (orientation: landscape) {
+
+    /* En 2 jugadores, el de arriba se gira */
+    .players-2 .player-zone:nth-child(1) .player-container-inner {
+        transform: rotate(180deg);
+    }
+
+    /* En 3 y 4 jugadores, los dos de la fila superior se giran 180 para los de enfrente */
+    .players-3 .player-zone:nth-child(1) .player-container-inner,
+    .players-4 .player-zone:nth-child(1) .player-container-inner,
+    .players-4 .player-zone:nth-child(2) .player-container-inner {
+        transform: rotate(180deg);
     }
 }
 
@@ -168,18 +183,16 @@ const goBack = () => router.push('/')
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Centrado absoluto del contenido */
 }
 
-/* HITBOXES REFORMADAS (POSICIÓN ABSOLUTA) */
+/* HITBOXES */
 .hitbox {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    width: 30%;
-    /* antes 38% */
-    height: 50%;
-    background: rgba(255, 255, 255, 0.12);
+    width: 35%;
+    height: 60%;
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 40px;
     display: flex;
     align-items: center;
@@ -187,26 +200,25 @@ const goBack = () => router.push('/')
     cursor: pointer;
     overflow: hidden;
     z-index: 5;
-    transition: transform 0.1s, background 0.2s;
+    transition: transform 0.1s;
 }
 
 .minus-box {
-    left: -10%;
+    left: -15%;
 }
 
 .plus-box {
-    right: -10%;
+    right: -15%;
 }
 
 .hitbox:active {
-    transform: translateY(-50%) scale(0.92);
-    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-50%) scale(0.95);
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .hit-symbol {
-    font-size: clamp(2.5rem, 5vw, 4rem);
-    font-weight: 300;
-    pointer-events: none;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    opacity: 0.5;
 }
 
 /* BLOQUE CENTRAL */
@@ -221,14 +233,12 @@ const goBack = () => router.push('/')
     font-size: 0.7rem;
     font-weight: 800;
     opacity: 0.4;
-    margin-bottom: 5px;
     text-transform: uppercase;
 }
 
 .life-number {
-    font-size: clamp(4.5rem, 18vw, 10rem);
+    font-size: clamp(4rem, 15vw, 9rem);
     font-weight: 950;
-    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     line-height: 0.9;
 }
 
@@ -238,10 +248,10 @@ const goBack = () => router.push('/')
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     background: #000;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 50%;
     z-index: 100;
     color: white;
@@ -260,8 +270,7 @@ const goBack = () => router.push('/')
 }
 
 .death-icon {
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
+    font-size: 2.5rem;
     display: block;
 }
 
@@ -269,10 +278,9 @@ const goBack = () => router.push('/')
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid white;
     color: white;
-    padding: 6px 16px;
+    padding: 4px 12px;
     border-radius: 20px;
-    font-weight: 800;
-    font-size: 0.7rem;
+    font-size: 0.6rem;
 }
 
 /* SETUP */
@@ -325,7 +333,6 @@ const goBack = () => router.push('/')
     color: white;
     border: none;
     font-weight: 900;
-    margin-bottom: 10px;
 }
 
 .back-btn {
@@ -333,7 +340,7 @@ const goBack = () => router.push('/')
     color: #64748b;
     border: none;
     font-size: 0.8rem;
-    font-weight: 700;
+    margin-top: 10px;
 }
 
 .fade-in {
@@ -343,12 +350,10 @@ const goBack = () => router.push('/')
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: scale(0.97);
     }
 
     to {
         opacity: 1;
-        transform: scale(1);
     }
 }
 </style>
