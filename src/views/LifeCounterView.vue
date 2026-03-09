@@ -119,7 +119,7 @@ const resetGame = () => {
 
                     <div v-if="activeCommanderPanel === player.id" class="cmd-overlay">
                         <div class="cmd-header">
-                            <span>Daño de Comandante</span>
+                            <span>Daño Comandante</span>
                             <button @click="activeCommanderPanel = null">✕</button>
                         </div>
                         <div class="cmd-list">
@@ -128,7 +128,7 @@ const resetGame = () => {
                                 <div class="cmd-actions">
                                     <button @click.stop="updateCommanderDamage(index, opp.id, -1)">-</button>
                                     <span :class="{ danger: (player.commanderDamage[opp.id] || 0) >= 18 }">
-                                        {{ player.commanderDamage[opp.id] || 0 }}/21
+                                        {{ player.commanderDamage[opp.id] || 0 }}
                                     </span>
                                     <button @click.stop="updateCommanderDamage(index, opp.id, 1)">+</button>
                                 </div>
@@ -154,7 +154,6 @@ const resetGame = () => {
     inset: 0;
 }
 
-/* GRID DINÁMICO */
 .game-board {
     display: grid;
     width: 100%;
@@ -183,7 +182,6 @@ const resetGame = () => {
     border: 0.5px solid rgba(0, 0, 0, 0.2);
 }
 
-/* SISTEMA DE ROTACIÓN INFALIBLE */
 .inner-content-rotator {
     position: absolute;
     top: 50%;
@@ -195,10 +193,8 @@ const resetGame = () => {
     flex-direction: column;
 }
 
-/* Ajuste de dimensiones según orientación para que la UI no se desborde */
 @media (orientation: portrait) {
 
-    /* Jugadores laterales en modo vertical */
     .players-4 .player-zone:nth-child(1) .inner-content-rotator,
     .players-4 .player-zone:nth-child(3) .inner-content-rotator,
     .players-3 .player-zone:nth-child(2) .inner-content-rotator {
@@ -215,7 +211,6 @@ const resetGame = () => {
         transform: translate(-50%, -50%) rotate(-90deg);
     }
 
-    /* El jugador 1 en 3 players o ambos en 2 players están "cara a cara" */
     .players-2 .player-zone:first-child .inner-content-rotator,
     .players-3 .player-zone:first-child .inner-content-rotator {
         transform: translate(-50%, -50%) rotate(180deg);
@@ -224,7 +219,6 @@ const resetGame = () => {
 
 @media (orientation: landscape) {
 
-    /* En horizontal, los de arriba están invertidos */
     .players-4 .player-zone:nth-child(1) .inner-content-rotator,
     .players-4 .player-zone:nth-child(2) .inner-content-rotator,
     .players-2 .player-zone:first-child .inner-content-rotator,
@@ -233,7 +227,6 @@ const resetGame = () => {
     }
 }
 
-/* CAPAS DE UI */
 .interface-layer {
     position: relative;
     z-index: 10;
@@ -241,7 +234,7 @@ const resetGame = () => {
     width: 100%;
     display: flex;
     flex-direction: column;
-    padding: 12px;
+    padding: 10px;
     pointer-events: none;
     box-sizing: border-box;
 }
@@ -254,17 +247,17 @@ const resetGame = () => {
 
 .status-pills {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
 .pill {
     background: rgba(0, 0, 0, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
-    border-radius: 10px;
-    padding: 8px 14px;
+    border-radius: 8px;
+    padding: 6px 10px;
     font-weight: 800;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     backdrop-filter: blur(8px);
 }
 
@@ -274,7 +267,6 @@ const resetGame = () => {
     border-color: #fff;
 }
 
-/* VIDA */
 .life-center {
     flex: 1;
     display: flex;
@@ -284,19 +276,18 @@ const resetGame = () => {
 }
 
 .p-tag {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 900;
     opacity: 0.5;
     letter-spacing: 2px;
 }
 
 .p-life {
-    font-size: clamp(4rem, 15vh, 10rem);
+    font-size: clamp(3.5rem, 15vh, 9rem);
     font-weight: 900;
     line-height: 1;
 }
 
-/* HITBOXES (Debajo de la interfaz) */
 .interaction-layer {
     position: absolute;
     inset: 0;
@@ -309,47 +300,57 @@ const resetGame = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 4rem;
-    opacity: 0.1;
-    transition: opacity 0.2s;
+    font-size: 3rem;
+    opacity: 0.05;
 }
 
-.hitbox:active {
-    opacity: 0.3;
-    background: rgba(255, 255, 255, 0.1);
-}
-
-/* OVERLAY COMANDANTE */
+/* AJUSTES CRÍTICOS PARA EL OVERLAY DEL COMANDANTE */
 .cmd-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.95);
+    background: rgba(0, 0, 0, 0.92);
     z-index: 50;
     display: flex;
     flex-direction: column;
-    padding: 15px;
+    padding: 8px;
 }
 
 .cmd-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-weight: 900;
-    margin-bottom: 15px;
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.cmd-header button {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.2rem;
+    padding: 0 5px;
 }
 
 .cmd-list {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
+    justify-content: center;
+    /* Centra los oponentes si hay pocos */
 }
 
 .cmd-row {
     display: flex;
     align-items: center;
-    gap: 15px;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 10px;
-    border-radius: 12px;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 6px 10px;
+    border-radius: 10px;
+    height: 28%;
+    /* Forzamos a que quepan 3 filas cómodamente */
 }
 
 .cmd-actions {
@@ -357,72 +358,79 @@ const resetGame = () => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    height: 100%;
 }
 
 .cmd-actions button {
-    width: 45px;
-    height: 45px;
-    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     border: none;
     font-weight: 900;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    background: #fff;
+    color: #000;
+}
+
+.cmd-actions span {
+    font-weight: 900;
+    font-size: 1.1rem;
+    min-width: 30px;
+    text-align: center;
 }
 
 .opp-indicator {
-    width: 12px;
-    height: 35px;
-    border-radius: 4px;
+    width: 10px;
+    height: 100%;
+    min-height: 25px;
+    border-radius: 3px;
 }
 
-/* BOTÓN MENÚ CENTRAL */
 .center-menu-btn {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: #000;
     border: 2px solid rgba(255, 255, 255, 0.4);
     color: white;
     z-index: 100;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
 }
 
-/* SETUP SCREEN */
 .setup-screen {
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+    background: #0f172a;
 }
 
 .setup-box {
     background: rgba(255, 255, 255, 0.05);
-    padding: 25px;
+    padding: 20px;
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    width: 280px;
+    width: 260px;
 }
 
 .setup-box p {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
-    margin: 15px 0 8px;
+    margin: 12px 0 6px;
     opacity: 0.6;
     font-weight: 700;
 }
 
 .selector-row {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
 .selector-row button {
     flex: 1;
-    padding: 12px;
+    padding: 10px;
     border-radius: 8px;
     border: none;
     background: #1e293b;
@@ -432,19 +440,17 @@ const resetGame = () => {
 
 .selector-row button.active {
     background: #3b82f6;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
 
 .start-btn {
     width: 100%;
-    margin-top: 25px;
-    padding: 18px;
-    border-radius: 12px;
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 10px;
     background: #3b82f6;
     border: none;
     color: white;
     font-weight: 900;
-    font-size: 1rem;
 }
 
 .is-dead {
@@ -453,6 +459,5 @@ const resetGame = () => {
 
 .danger {
     color: #ff4444;
-    text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
 }
 </style>
