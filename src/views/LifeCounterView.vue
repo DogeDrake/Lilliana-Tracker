@@ -8,8 +8,6 @@ const router = useRouter()
 const gameStarted = ref(false)
 const numPlayers = ref(4)
 const startingLife = ref(40)
-
-// --- ESTADO DEL JUEGO ---
 const players = ref([])
 
 const startGame = () => {
@@ -17,7 +15,8 @@ const startGame = () => {
         id: i + 1,
         name: `JUGADOR ${i + 1}`,
         life: startingLife.value,
-        color: getPlayerColor(i)
+        color: getPlayerColor(i),
+        activeSide: null // Para controlar el ripple manual
     }))
     gameStarted.value = true
 }
@@ -27,16 +26,20 @@ const getPlayerColor = (i) => {
     return colors[i]
 }
 
-const updateLife = (index, amount) => {
+// --- LÓGICA DE TOQUE MEJORADA ---
+const triggerRipple = (index, side, amount) => {
     players.value[index].life += amount
+    players.value[index].activeSide = side
+
+    // Quitamos la clase después de la animación
+    setTimeout(() => {
+        players.value[index].activeSide = null
+    }, 300)
 }
 
 const resetGame = () => {
-    if (confirm("¿Reiniciar partida?")) {
-        gameStarted.value = false
-    }
+    if (confirm("¿Reiniciar partida?")) gameStarted.value = false
 }
-
 const goBack = () => router.push('/')
 </script>
 
@@ -59,10 +62,7 @@ const goBack = () => router.push('/')
                             :class="{ active: startingLife === l }">{{ l }}</button>
                     </div>
                 </div>
-                <div class="setup-actions">
-                    <button @click="startGame" class="start-btn">COMENZAR PARTIDA</button>
-                    <button @click="goBack" class="back-btn">VOLVER AL INICIO</button>
-                </div>
+                <button @click="startGame" class="start-btn">COMENZAR PARTIDA</button>
             </div>
         </div>
 
@@ -74,26 +74,26 @@ const goBack = () => router.push('/')
                 <div class="player-container-inner">
                     <div class="life-interface-wrapper">
 
-                        <div class="hitbox minus-box" @click="updateLife(index, -1)">
-                            <div class="ripple"></div>
+                        <div class="hitbox" @touchstart.prevent="triggerRipple(index, 'minus', -1)"
+                            @mousedown="triggerRipple(index, 'minus', -1)">
+                            <div class="ripple" :class="{ 'animate': player.activeSide === 'minus' }"></div>
                             <span class="hit-symbol">−</span>
                         </div>
 
                         <div class="life-display-block">
                             <span class="player-name">{{ player.name }}</span>
-
                             <div v-if="player.life > 0" class="life-text-container">
                                 <span class="life-number">{{ player.life }}</span>
                             </div>
-
-                            <div v-else class="dead-ui fade-in">
+                            <div v-else class="dead-ui">
                                 <span class="death-icon">💀</span>
-                                <button @click="updateLife(index, 1)" class="undo-btn">DESHACER</button>
+                                <button @click="player.life = 1" class="undo-btn">REVIVIR</button>
                             </div>
                         </div>
 
-                        <div class="hitbox plus-box" @click="updateLife(index, 1)">
-                            <div class="ripple"></div>
+                        <div class="hitbox" @touchstart.prevent="triggerRipple(index, 'plus', 1)"
+                            @mousedown="triggerRipple(index, 'plus', 1)">
+                            <div class="ripple" :class="{ 'animate': player.activeSide === 'plus' }"></div>
                             <span class="hit-symbol">+</span>
                         </div>
 
@@ -101,9 +101,7 @@ const goBack = () => router.push('/')
                 </div>
             </div>
 
-            <button @click="resetGame" class="floating-menu-btn">
-                <span class="icon">⚙️</span>
-            </button>
+            <button @click="resetGame" class="floating-menu-btn">⚙️</button>
         </div>
     </div>
 </template>
@@ -115,38 +113,22 @@ const goBack = () => router.push('/')
     background: #000;
     color: white;
     overflow: hidden;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', sans-serif;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .game-board {
     display: grid;
     width: 100%;
     height: 100%;
-    position: relative;
 }
 
-/* GRIDS */
 .players-2 {
     grid-template-rows: 1fr 1fr;
 }
 
-.players-2 .player-zone:nth-child(1) .player-container-inner {
-    transform: rotate(180deg);
-}
-
-.players-3 {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-}
-
-.players-3 .player-zone:nth-child(1) {
-    grid-column: span 2;
-}
-
-.players-3 .player-zone:nth-child(1) .player-container-inner {
+.players-2 .player-zone:nth-child(1) {
     transform: rotate(180deg);
 }
 
@@ -155,25 +137,14 @@ const goBack = () => router.push('/')
     grid-template-rows: 1fr 1fr;
 }
 
-/* ROTACIONES MODO MESA */
+/* Rotación dinámica para tablets/móviles en mesa */
 @media (orientation: portrait) {
-
-    .players-4 .player-zone:nth-child(odd) .player-container-inner,
-    .players-3 .player-zone:nth-child(2) .player-container-inner {
+    .players-4 .player-zone:nth-child(odd) {
         transform: rotate(90deg);
     }
 
-    .players-4 .player-zone:nth-child(even) .player-container-inner,
-    .players-3 .player-zone:nth-child(3) .player-container-inner {
+    .players-4 .player-zone:nth-child(even) {
         transform: rotate(-90deg);
-    }
-}
-
-@media (orientation: landscape) {
-
-    .players-4 .player-zone:nth-child(1) .player-container-inner,
-    .players-4 .player-zone:nth-child(2) .player-container-inner {
-        transform: rotate(180deg);
     }
 }
 
@@ -181,72 +152,65 @@ const goBack = () => router.push('/')
     position: relative;
     overflow: hidden;
     background-color: var(--player-color);
-    border: 0.5px solid rgba(0, 0, 0, 0.15);
     transition: background-color 0.4s ease;
+    border: 0.5px solid rgba(0, 0, 0, 0.2);
 }
 
-.player-container-inner {
+.player-container-inner,
+.life-interface-wrapper {
     width: 100%;
     height: 100%;
 }
 
 .life-interface-wrapper {
     display: flex;
-    flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    width: 100%;
-    height: 100%;
 }
 
-/* --- PASTILLAS --- */
+/* --- BOTONES (PASTILLAS) --- */
 .hitbox {
     position: relative;
-    width: 28%;
-    height: 30%;
-    background-color: rgba(255, 255, 255, 0.12);
-    border-radius: 40px;
+    width: 35%;
+    height: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
-    cursor: pointer;
-    overflow: hidden;
     z-index: 5;
-}
-
-.hitbox:active {
-    background-color: rgba(255, 255, 255, 0.25);
-    transform: scale(0.96);
+    overflow: hidden;
 }
 
 .hit-symbol {
-    font-size: clamp(2rem, 5vw, 4rem);
-    font-weight: 300;
+    font-size: 5rem;
+    font-weight: 200;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0.8;
 }
 
-/* --- RIPPLES UNIFICADOS (ANCHOTES Y SIEMPRE IGUALES) --- */
+/* --- RIPPLE MEJORADO PARA MÓVIL --- */
 .ripple {
     position: absolute;
-    width: 200%;
-    /* Muy ancho para cubrir toda la pastilla */
-    aspect-ratio: 1;
-    background: white;
-    opacity: 0;
-    border-radius: 50%;
     top: 50%;
     left: 50%;
+    width: 150vmax;
+    height: 150vmax;
+    /* Tamaño masivo basado en la pantalla */
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
     transform: translate(-50%, -50%) scale(0);
     pointer-events: none;
+    will-change: transform, opacity;
 }
 
-.hitbox:active .ripple {
-    animation: big-ripple 0.4s ease-out;
+.ripple.animate {
+    animation: rapid-ripple 0.35s cubic-bezier(0, 0, 0.2, 1);
 }
 
-@keyframes big-ripple {
+@keyframes rapid-ripple {
     0% {
         transform: translate(-50%, -50%) scale(0);
-        opacity: 0.3;
+        opacity: 0.6;
     }
 
     100% {
@@ -257,76 +221,47 @@ const goBack = () => router.push('/')
 
 /* --- BLOQUE CENTRAL --- */
 .life-display-block {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: 1;
     pointer-events: none;
-    margin: 50px;
-    position: relative;
-}
-
-.player-name {
-    position: absolute;
-    top: -10%;
-    font-size: 0.7rem;
-    font-weight: 800;
-    opacity: 0.4;
-    text-transform: uppercase;
+    z-index: 2;
+    margin: 0 10px;
 }
 
 .life-number {
-    font-size: clamp(4rem, 22vw, 11rem);
-    font-weight: 950;
-    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    font-size: clamp(5rem, 25vw, 12rem);
+    font-weight: 900;
     line-height: 1;
+    text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
-/* --- OTROS ELEMENTOS --- */
+.player-name {
+    font-size: 0.8rem;
+    font-weight: 800;
+    opacity: 0.5;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/* --- MENÚ Y SETUP --- */
 .floating-menu-btn {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 48px;
-    height: 48px;
-    background: #000;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.is-dead {
-    filter: grayscale(1) brightness(0.12);
-}
-
-.dead-ui {
-    text-align: center;
-    pointer-events: auto;
-}
-
-.death-icon {
-    font-size: 3.5rem;
-    display: block;
-    margin-bottom: 0.5rem;
-}
-
-.undo-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1.5px solid white;
+    background: #000;
+    border: 2px solid rgba(255, 255, 255, 0.2);
     color: white;
-    padding: 8px 18px;
-    border-radius: 20px;
-    font-weight: 800;
-    font-size: 0.75rem;
+    z-index: 100;
 }
 
 .setup-screen {
-    width: 100%;
     height: 100%;
     display: flex;
     align-items: center;
@@ -335,27 +270,26 @@ const goBack = () => router.push('/')
 }
 
 .setup-container {
-    width: 85%;
-    max-width: 420px;
+    width: 80%;
     text-align: center;
 }
 
 .setup-title {
-    font-weight: 950;
+    font-size: 2.5rem;
+    font-weight: 900;
     color: #3b82f6;
-    margin-bottom: 2rem;
-    font-size: 2.2rem;
+    margin-bottom: 30px;
 }
 
 .selector-row {
     display: flex;
     gap: 10px;
-    margin-bottom: 2rem;
+    margin-bottom: 25px;
 }
 
 .selector-row button {
     flex: 1;
-    padding: 1.2rem;
+    padding: 15px;
     border-radius: 12px;
     background: #1e293b;
     color: white;
@@ -365,31 +299,31 @@ const goBack = () => router.push('/')
 
 .selector-row button.active {
     background: #3b82f6;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
 }
 
 .start-btn {
     width: 100%;
-    padding: 1.3rem;
-    border-radius: 14px;
+    padding: 20px;
+    border-radius: 15px;
     background: #3b82f6;
     color: white;
-    border: none;
     font-weight: 900;
+    border: none;
+    font-size: 1.2rem;
 }
 
 .fade-in {
-    animation: fadeIn 0.4s ease-out forwards;
+    animation: fadeIn 0.5s ease-out;
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: scale(0.97);
     }
 
     to {
         opacity: 1;
-        transform: scale(1);
     }
 }
 </style>
