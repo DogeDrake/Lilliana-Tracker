@@ -307,96 +307,9 @@ const resetGame = () => {
 }
 
 /* --- CORRECCIÓN DEL FLEX PARA EL DAÑO DE COMANDANTE --- */
-.cmd-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.94);
-    z-index: 50;
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-}
-
-.cmd-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 8px;
-    margin-bottom: 8px;
-}
-
-.cmd-header span {
-    font-weight: 900;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    opacity: 0.7;
-}
-
-.close-btn {
-    background: #333;
-    border: none;
-    color: #fff;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-size: 1rem;
-}
-
-.cmd-list {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    justify-content: space-around;
-    /* Distribuye las filas equitativamente */
-}
-
-.cmd-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 8px 12px;
-    border-radius: 12px;
-    height: 28%;
-    /* Asegura que 3 filas quepan siempre */
-}
-
-.cmd-actions {
-    flex: 1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 100%;
-}
-
-.cmd-actions button {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    border: none;
-    font-weight: 900;
-    font-size: 1.4rem;
-    background: #eee;
-    color: #000;
-}
-
 .cmd-actions button:active {
     background: #fff;
     transform: scale(0.95);
-}
-
-.cmd-value {
-    font-weight: 900;
-    font-size: 1.3rem;
-    min-width: 40px;
-    text-align: center;
-}
-
-.opp-indicator {
-    width: 8px;
-    height: 100%;
-    border-radius: 4px;
 }
 
 /* --------------------------------------------------- */
@@ -477,5 +390,111 @@ const resetGame = () => {
 .danger {
     color: #ff4444;
     text-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+}
+
+/* --- OVERLAY DINÁMICO: EVITA EL DESBORDE EN PARTIDAS DE 4 --- */
+.cmd-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.96);
+    /* Un pelín más oscuro para legibilidad */
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    /* Reducido para ganar espacio */
+    box-sizing: border-box;
+}
+
+.cmd-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 6px;
+    margin-bottom: 4px;
+    height: 24px;
+    /* Altura fija pequeña para el encabezado */
+}
+
+.cmd-header span {
+    font-weight: 900;
+    font-size: 0.65rem;
+    /* Más pequeño para que no empuje las filas */
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+
+.close-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cmd-list {
+    flex: 1;
+    /* Ocupa todo el espacio restante */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    /* Espacio mínimo entre filas */
+    overflow: hidden;
+    /* Evita scroll indeseado */
+}
+
+.cmd-row {
+    flex: 1;
+    /* Las filas se estiran equitativamente */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0 10px;
+    border-radius: 8px;
+    min-height: 0;
+    /* Permite que la fila encoja si es necesario */
+}
+
+.cmd-actions {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+}
+
+.cmd-actions button {
+    width: clamp(32px, 8vh, 48px);
+    /* Tamaño dinámico según el alto de pantalla */
+    height: clamp(32px, 8vh, 48px);
+    border-radius: 8px;
+    border: none;
+    font-weight: 900;
+    font-size: 1.2rem;
+    background: #fff;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cmd-value {
+    font-weight: 900;
+    font-size: clamp(1rem, 5vh, 1.4rem);
+    min-width: 35px;
+    text-align: center;
+}
+
+.opp-indicator {
+    width: 6px;
+    height: 70%;
+    /* No ocupa todo el alto para verse más estilizado */
+    border-radius: 3px;
 }
 </style>
