@@ -176,8 +176,8 @@ const goBack = () => router.push('/')
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    width: 38%;
-    /* Tamaño ideal para ser pulsable sin pisar el centro */
+    width: 30%;
+    /* antes 38% */
     height: 50%;
     background: rgba(255, 255, 255, 0.12);
     border-radius: 40px;
@@ -191,11 +191,11 @@ const goBack = () => router.push('/')
 }
 
 .minus-box {
-    left: 5%;
+    left: -10%;
 }
 
 .plus-box {
-    right: 5%;
+    right: -10%;
 }
 
 .hitbox:active {
@@ -350,21 +350,5 @@ const goBack = () => router.push('/')
         opacity: 1;
         transform: scale(1);
     }
-}
-
-media (max-width:700px) {
-
-    .minus-box {
-        left: 1%;
-    }
-
-    .plus-box {
-        right: 1%;
-    }
-
-    .hitbox {
-        width: 36%;
-    }
-
 }
 </style>
