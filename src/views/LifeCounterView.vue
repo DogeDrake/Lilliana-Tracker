@@ -1,8 +1,5 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
 
 const gameStarted = ref(false)
 const numPlayers = ref(4)
@@ -67,16 +64,20 @@ const resetGame = () => {
     <div class="life-counter-root">
         <div v-if="!gameStarted" class="setup-screen">
             <div class="setup-container">
-                <h2 class="setup-title">LILLIANA TRACKER</h2>
-                <div class="selector-row">
-                    <button v-for="n in [2, 3, 4]" :key="n" @click="numPlayers = n"
-                        :class="{ active: numPlayers === n }">{{ n }}</button>
+                <h1 class="setup-title">LILLIANA TRACKER</h1>
+                <div class="setup-box">
+                    <p>Jugadores</p>
+                    <div class="selector-row">
+                        <button v-for="n in [2, 3, 4]" :key="n" @click="numPlayers = n"
+                            :class="{ active: numPlayers === n }">{{ n }}</button>
+                    </div>
+                    <p>Vida Inicial</p>
+                    <div class="selector-row">
+                        <button v-for="l in [20, 30, 40]" :key="l" @click="startingLife = l"
+                            :class="{ active: startingLife === l }">{{ l }}</button>
+                    </div>
+                    <button class="start-btn" @click="startGame">EMPEZAR PARTIDA</button>
                 </div>
-                <div class="selector-row">
-                    <button v-for="l in [20, 30, 40]" :key="l" @click="startingLife = l"
-                        :class="{ active: startingLife === l }">{{ l }}</button>
-                </div>
-                <button class="start-btn" @click="startGame">COMENZAR PARTIDA</button>
             </div>
         </div>
 
@@ -85,59 +86,48 @@ const resetGame = () => {
                 :style="{ '--player-color': !player.dead ? player.color : '#111' }"
                 :class="{ 'is-dead': player.dead, 'has-monarch': player.isMonarch }">
 
-                <div class="player-container-inner">
-                    <div class="content-wrapper">
+                <div class="inner-content-rotator">
+                    <div class="interaction-layer">
+                        <div class="hitbox minus" @click="updateLife(index, -1)"><span>−</span></div>
+                        <div class="hitbox plus" @click="updateLife(index, 1)"><span>+</span></div>
+                    </div>
 
-                        <div class="top-bar-controls">
-                            <div class="left-group">
-                                <div class="control-pill poison" @click.stop="updatePoison(index, 1)"
+                    <div class="interface-layer">
+                        <div class="top-nav">
+                            <div class="status-pills">
+                                <button class="pill poison-pill" @click.stop="updatePoison(index, 1)"
                                     @contextmenu.prevent="updatePoison(index, -1)">
-                                    <span>🧪</span> <span class="val">{{ player.poison }}</span>
-                                </div>
-                                <div class="control-pill commander" @click.stop="activeCommanderPanel = player.id">
-                                    <span>⚔️</span>
-                                </div>
-                            </div>
-                            <div class="right-group">
-                                <button class="control-pill monarch" :class="{ active: player.isMonarch }"
-                                    @click.stop="setMonarch(index)">
-                                    👑 <span v-if="player.isMonarch" class="monarch-text">MONARCA</span>
+                                    🧪 {{ player.poison }}
                                 </button>
+                                <button class="pill cmd-pill" @click.stop="activeCommanderPanel = player.id">⚔️</button>
                             </div>
+                            <button class="pill monarch-pill" :class="{ active: player.isMonarch }"
+                                @click.stop="setMonarch(index)">
+                                👑 <span v-if="player.isMonarch">MONARCA</span>
+                            </button>
                         </div>
 
-                        <div class="life-display-block">
-                            <span class="player-name">{{ player.name }}</span>
-                            <div v-if="!player.dead" class="life-main">
-                                <span class="life-number">{{ player.life }}</span>
-                            </div>
-                            <div v-else class="dead-ui">
-                                <span class="death-icon">💀</span>
-                                <button class="undo-btn" @click="player.dead = false; player.life = 1">REVIVIR</button>
+                        <div class="life-center">
+                            <span class="p-tag">{{ player.name }}</span>
+                            <span v-if="!player.dead" class="p-life">{{ player.life }}</span>
+                            <div v-else class="p-death-msg">
+                                💀 <button @click="player.dead = false; player.life = 1">REVIVIR</button>
                             </div>
                         </div>
-
-                        <div class="bottom-spacer"></div>
+                        <div class="bottom-safe-area"></div>
                     </div>
 
-                    <div class="hitbox minus-box" @click="updateLife(index, -1)">
-                        <span class="hit-symbol">−</span>
-                    </div>
-                    <div class="hitbox plus-box" @click="updateLife(index, 1)">
-                        <span class="hit-symbol">+</span>
-                    </div>
-
-                    <div v-if="activeCommanderPanel === player.id" class="commander-overlay">
-                        <button class="close-overlay" @click="activeCommanderPanel = null">✕</button>
-                        <p class="overlay-title">Daño de Comandante</p>
-                        <div class="commander-grid">
-                            <div v-for="opp in players.filter(p => p.id !== player.id)" :key="opp.id"
-                                class="opp-dmg-row">
-                                <div class="opp-color" :style="{ background: opp.color }"></div>
-                                <div class="opp-actions">
+                    <div v-if="activeCommanderPanel === player.id" class="cmd-overlay">
+                        <div class="cmd-header">
+                            <span>Daño de Comandante</span>
+                            <button @click="activeCommanderPanel = null">✕</button>
+                        </div>
+                        <div class="cmd-list">
+                            <div v-for="opp in players.filter(p => p.id !== player.id)" :key="opp.id" class="cmd-row">
+                                <div class="opp-indicator" :style="{ background: opp.color }"></div>
+                                <div class="cmd-actions">
                                     <button @click.stop="updateCommanderDamage(index, opp.id, -1)">-</button>
-                                    <span class="dmg-val"
-                                        :class="{ danger: (player.commanderDamage[opp.id] || 0) >= 18 }">
+                                    <span :class="{ danger: (player.commanderDamage[opp.id] || 0) >= 18 }">
                                         {{ player.commanderDamage[opp.id] || 0 }}/21
                                     </span>
                                     <button @click.stop="updateCommanderDamage(index, opp.id, 1)">+</button>
@@ -148,7 +138,7 @@ const resetGame = () => {
                 </div>
             </div>
 
-            <button class="floating-menu-btn" @click="resetGame">⚙️</button>
+            <button class="center-menu-btn" @click="resetGame">⚙️</button>
         </div>
     </div>
 </template>
@@ -158,16 +148,18 @@ const resetGame = () => {
     width: 100dvw;
     height: 100dvh;
     background: #000;
-    color: white;
+    color: #fff;
     overflow: hidden;
-    font-family: 'Inter', system-ui;
-    user-select: none;
+    position: fixed;
+    inset: 0;
 }
 
+/* GRID DINÁMICO */
 .game-board {
     display: grid;
     width: 100%;
     height: 100%;
+    position: relative;
 }
 
 .players-2 {
@@ -188,268 +180,279 @@ const resetGame = () => {
     position: relative;
     background: var(--player-color);
     overflow: hidden;
+    border: 0.5px solid rgba(0, 0, 0, 0.2);
 }
 
-/* CONTENEDOR INTERNO: Ajustado para no dejar salir nada */
-.player-container-inner {
+/* SISTEMA DE ROTACIÓN INFALIBLE */
+.inner-content-rotator {
     position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* ENVOLTORIO DE CONTENIDO: Controla el flujo vertical */
-.content-wrapper {
+    top: 50%;
+    left: 50%;
     width: 100%;
     height: 100%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    /* Empuja controles arriba y spacer abajo */
-    padding: 10px;
+}
+
+/* Ajuste de dimensiones según orientación para que la UI no se desborde */
+@media (orientation: portrait) {
+
+    /* Jugadores laterales en modo vertical */
+    .players-4 .player-zone:nth-child(1) .inner-content-rotator,
+    .players-4 .player-zone:nth-child(3) .inner-content-rotator,
+    .players-3 .player-zone:nth-child(2) .inner-content-rotator {
+        width: 50dvh;
+        height: 50dvw;
+        transform: translate(-50%, -50%) rotate(90deg);
+    }
+
+    .players-4 .player-zone:nth-child(2) .inner-content-rotator,
+    .players-4 .player-zone:nth-child(4) .inner-content-rotator,
+    .players-3 .player-zone:nth-child(3) .inner-content-rotator {
+        width: 50dvh;
+        height: 50dvw;
+        transform: translate(-50%, -50%) rotate(-90deg);
+    }
+
+    /* El jugador 1 en 3 players o ambos en 2 players están "cara a cara" */
+    .players-2 .player-zone:first-child .inner-content-rotator,
+    .players-3 .player-zone:first-child .inner-content-rotator {
+        transform: translate(-50%, -50%) rotate(180deg);
+    }
+}
+
+@media (orientation: landscape) {
+
+    /* En horizontal, los de arriba están invertidos */
+    .players-4 .player-zone:nth-child(1) .inner-content-rotator,
+    .players-4 .player-zone:nth-child(2) .inner-content-rotator,
+    .players-2 .player-zone:first-child .inner-content-rotator,
+    .players-3 .player-zone:first-child .inner-content-rotator {
+        transform: translate(-50%, -50%) rotate(180deg);
+    }
+}
+
+/* CAPAS DE UI */
+.interface-layer {
+    position: relative;
+    z-index: 10;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    pointer-events: none;
     box-sizing: border-box;
 }
 
-/* ROTACIONES: Ahora rotamos el envoltorio entero para que los límites se mantengan */
-@media (orientation:portrait) {
-
-    .players-4 .player-zone:nth-child(odd) .player-container-inner,
-    .players-3 .player-zone:nth-child(2) .player-container-inner {
-        transform: rotate(90deg);
-    }
-
-    .players-4 .player-zone:nth-child(even) .player-container-inner,
-    .players-3 .player-zone:nth-child(3) .player-container-inner {
-        transform: rotate(-90deg);
-    }
-}
-
-@media (orientation:landscape) {
-
-    .players-4 .player-zone:nth-child(1) .player-container-inner,
-    .players-4 .player-zone:nth-child(2) .player-container-inner {
-        transform: rotate(180deg);
-    }
-}
-
-/* CONTROLES SUPERIORES */
-.top-bar-controls {
+.top-nav {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    width: 100%;
-    z-index: 10;
+    pointer-events: auto;
 }
 
-.left-group,
-.right-group {
+.status-pills {
     display: flex;
     gap: 8px;
 }
 
-.control-pill {
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: clamp(0.7rem, 2vw, 0.9rem);
-    font-weight: 800;
+.pill {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    backdrop-filter: blur(8px);
 }
 
-.monarch.active {
+.monarch-pill.active {
     background: #eab308;
-    color: black;
-    border-color: white;
+    color: #000;
+    border-color: #fff;
 }
 
-.monarch-text {
-    font-size: 0.6rem;
-}
-
-/* HITBOXES (Capa táctil) */
-.hitbox {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 45%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 5;
-}
-
-.minus-box {
-    left: 0;
-}
-
-.plus-box {
-    right: 0;
-}
-
-.hit-symbol {
-    font-size: clamp(2rem, 8vw, 4rem);
-    opacity: 0.12;
-    pointer-events: none;
-}
-
-/* BLOQUE DE VIDA */
-.life-display-block {
-    flex-grow: 1;
+/* VIDA */
+.life-center {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    pointer-events: none;
-    z-index: 2;
+    align-items: center;
 }
 
-.life-number {
-    font-size: clamp(3.5rem, 20vw, 10rem);
-    font-weight: 950;
+.p-tag {
+    font-size: 0.7rem;
+    font-weight: 900;
+    opacity: 0.5;
+    letter-spacing: 2px;
+}
+
+.p-life {
+    font-size: clamp(4rem, 15vh, 10rem);
+    font-weight: 900;
     line-height: 1;
 }
 
-.player-name {
-    font-size: 0.6rem;
-    opacity: 0.4;
-    font-weight: 900;
-    letter-spacing: 1px;
+/* HITBOXES (Debajo de la interfaz) */
+.interaction-layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    z-index: 5;
 }
 
-.bottom-spacer {
-    height: 40px;
+.hitbox {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    opacity: 0.1;
+    transition: opacity 0.2s;
 }
 
-/* Equilibra visualmente los controles superiores */
+.hitbox:active {
+    opacity: 0.3;
+    background: rgba(255, 255, 255, 0.1);
+}
 
 /* OVERLAY COMANDANTE */
-.commander-overlay {
+.cmd-overlay {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.95);
-    z-index: 100;
+    z-index: 50;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
+    padding: 15px;
 }
 
-.commander-grid {
-    width: 100%;
-    max-width: 320px;
+.cmd-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 900;
+    margin-bottom: 15px;
+}
+
+.cmd-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-}
-
-.opp-dmg-row {
-    display: flex;
-    align-items: center;
     gap: 10px;
+}
+
+.cmd-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
     background: rgba(255, 255, 255, 0.1);
-    padding: 8px;
-    border-radius: 10px;
+    padding: 10px;
+    border-radius: 12px;
 }
 
-.opp-color {
-    width: 8px;
-    height: 25px;
-    border-radius: 3px;
-}
-
-.opp-actions {
+.cmd-actions {
     flex: 1;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.opp-actions button {
-    width: 42px;
-    height: 42px;
-    border-radius: 8px;
-    background: white;
-    color: black;
+.cmd-actions button {
+    width: 45px;
+    height: 45px;
+    border-radius: 10px;
+    border: none;
     font-weight: 900;
-    border: none;
-}
-
-.close-overlay {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    color: white;
     font-size: 1.2rem;
 }
 
-/* MENÚ Y SETUP */
-.floating-menu-btn {
+.opp-indicator {
+    width: 12px;
+    height: 35px;
+    border-radius: 4px;
+}
+
+/* BOTÓN MENÚ CENTRAL */
+.center-menu-btn {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 42px;
-    height: 42px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: #000;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.4);
     color: white;
-    z-index: 200;
+    z-index: 100;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
 }
 
+/* SETUP SCREEN */
 .setup-screen {
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0f172a;
+    background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
 }
 
-.setup-container {
-    width: 85%;
-    max-width: 300px;
-    text-align: center;
+.setup-box {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 25px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 280px;
+}
+
+.setup-box p {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    margin: 15px 0 8px;
+    opacity: 0.6;
+    font-weight: 700;
 }
 
 .selector-row {
     display: flex;
     gap: 8px;
-    margin-bottom: 12px;
 }
 
 .selector-row button {
     flex: 1;
-    padding: 14px;
-    background: #1e293b;
+    padding: 12px;
+    border-radius: 8px;
     border: none;
+    background: #1e293b;
     color: white;
-    border-radius: 10px;
-    font-weight: 900;
+    font-weight: 800;
 }
 
 .selector-row button.active {
     background: #3b82f6;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
 
 .start-btn {
     width: 100%;
+    margin-top: 25px;
     padding: 18px;
+    border-radius: 12px;
     background: #3b82f6;
     border: none;
-    border-radius: 12px;
-    font-weight: 900;
     color: white;
+    font-weight: 900;
+    font-size: 1rem;
 }
 
 .is-dead {
     filter: grayscale(1) brightness(0.2);
+}
+
+.danger {
+    color: #ff4444;
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
 }
 </style>
