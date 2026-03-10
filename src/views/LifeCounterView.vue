@@ -93,6 +93,35 @@ function onDeckSelect(index) {
     }
 }
 
+// --- CAMBIO DE FORMATO ---
+function changeFormat(newFormat) {
+    format.value = newFormat
+
+    // Ajustar vida inicial según el formato
+    startingLife.value = (newFormat === 'commander') ? 40 : 20
+
+    // Limpiar datos de oponentes (índices 1, 2 y 3)
+    setupPlayers.value.forEach((p, idx) => {
+        // El jugador principal (idx 0) mantiene su nombre y user_id
+        if (idx !== 0) {
+            p.name = ''
+            p.user_id = null
+            p.suggestions = []
+        }
+
+        // Todos los jugadores pierden el mazo seleccionado (ya que los mazos dependen del formato)
+        p.deck_id = null
+        p.deck_name = ''
+        p.decks = []
+
+        // Si el jugador actual tiene un ID (es un perfil de Supabase), 
+        // recargar sus mazos para el nuevo formato
+        if (p.user_id) {
+            loadPlayerDecks(idx, p.user_id)
+        }
+    })
+}
+
 // --- GESTIÓN DE LA PARTIDA E INICIO ---
 const getPlayerColor = (i) => ['#b91c1c', '#1d4ed8', '#047857', '#b45309'][i]
 
@@ -281,11 +310,22 @@ const resetGame = () => {
         gameOver.value = false
     }
 }
+
+
+const goBack = () => {
+    router.back()
+}
 </script>
 
 <template>
     <div class="life-counter-root">
-
+        <button v-if="!gameStarted" class="back-nav-btn" @click="goBack">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6" />
+            </svg>
+            Volver
+        </button>
         <div v-if="!gameStarted" class="setup-screen scrollable">
             <div class="setup-container">
                 <h1 class="setup-title">LILLIANA TRACKER</h1>
@@ -293,10 +333,10 @@ const resetGame = () => {
 
                     <p class="section-label">Formato y Vida</p>
                     <div class="selector-row">
-                        <button @click="format = 'commander'; startingLife = 40"
+                        <button @click="changeFormat('commander')"
                             :class="{ active: format === 'commander' }">Commander</button>
-                        <button @click="format = 'pauper'; startingLife = 20"
-                            :class="{ active: format === 'pauper' }">Pauper</button>
+
+                        <button @click="changeFormat('pauper')" :class="{ active: format === 'pauper' }">Pauper</button>
                     </div>
 
                     <p class="section-label">Número de Jugadores</p>
@@ -1042,5 +1082,30 @@ const resetGame = () => {
         transform: scale(1);
         opacity: 1;
     }
+}
+
+/* Estilo para el botón de volver */
+.back-nav-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 8px 16px 8px 8px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+}
+
+.back-nav-btn:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.1);
 }
 </style>
