@@ -359,14 +359,17 @@ const resetGame = () => {
                     </div>
 
                     <div class="interaction-layer">
-                        <div class="hitbox minus" @mousedown="handleTouchStart(index, -1)"
-                            @mouseup="handleTouchEnd(index, -1)" @touchstart.passive="handleTouchStart(index, -1)"
-                            @touchend.passive="handleTouchEnd(index, -1)">
+                        <div class="hitbox minus" @mousedown="handleTouchStart($event, index, -1)"
+                            @mouseup="handleTouchEnd($event, index, -1)"
+                            @touchstart.passive="handleTouchStart($event, index, -1)"
+                            @touchend="handleTouchEnd($event, index, -1)">
                             <span>−</span>
                         </div>
-                        <div class="hitbox plus" @mousedown="handleTouchStart(index, 1)"
-                            @mouseup="handleTouchEnd(index, 1)" @touchstart.passive="handleTouchStart(index, 1)"
-                            @touchend.passive="handleTouchEnd(index, 1)">
+
+                        <div class="hitbox plus" @mousedown="handleTouchStart($event, index, 1)"
+                            @mouseup="handleTouchEnd($event, index, 1)"
+                            @touchstart.passive="handleTouchStart($event, index, 1)"
+                            @touchend="handleTouchEnd($event, index, 1)">
                             <span>+</span>
                         </div>
                     </div>
