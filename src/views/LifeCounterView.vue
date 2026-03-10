@@ -9,17 +9,22 @@ const router = useRouter()
 const gameStarted = ref(false)
 const gameOver = ref(false)
 const winner = ref(null)
-const format = ref('commander')
+const format = ref('commander') // 'commander' o 'pauper'
 const numPlayers = ref(4)
 const startingLife = ref(40)
+
+// Variables para el sistema de turnos
 const currentPlayerIndex = ref(0)
 const isShuffling = ref(false)
 const activeCommanderPanel = ref(null)
 const loading = ref(false)
 const currentUser = ref(null)
 
+// Lógica para pulsación larga
+const pressTimer = ref(null)
+const isLongPress = ref(false)
+
 // --- CONFIGURACIÓN DE JUGADORES (Setup) ---
-// Estructura alineada con tu DB
 const setupPlayers = ref([
     { name: '', deck_name: '', deck_id: null, user_id: null, suggestions: [], decks: [] },
     { name: '', deck_name: '', deck_id: null, user_id: null, suggestions: [], decks: [] },
@@ -44,7 +49,7 @@ onMounted(async () => {
     }
 })
 
-// --- LÓGICA DE BÚSQUEDA Y MAZOS ---
+// --- LÓGICA DE BÚSQUEDA Y MAZOS (SUPABASE) ---
 async function handleSearch(index) {
     const term = setupPlayers.value[index].name
     if (term.length < 3) {
@@ -83,10 +88,12 @@ function onDeckSelect(index) {
     const selected = p.decks.find(d => d.id === p.deck_id)
     if (selected) {
         p.deck_name = selected.comandante_nombre || selected.nombre_personalizado || selected.arquetipo_pauper
+    } else if (p.deck_id !== 'manual') {
+        p.deck_name = ''
     }
 }
 
-// --- GESTIÓN DE LA PARTIDA ---
+// --- GESTIÓN DE LA PARTIDA E INICIO ---
 const getPlayerColor = (i) => ['#b91c1c', '#1d4ed8', '#047857', '#b45309'][i]
 
 const startGame = () => {
@@ -95,7 +102,7 @@ const startGame = () => {
         user_id: p.user_id,
         deck_id: p.deck_id,
         name: p.name || `Jugador ${i + 1}`,
-        deck_name: p.deck_name || (format.value === 'commander' ? 'Comandante Desconocido' : 'Mazo Desconocido'),
+        deck_name: p.deck_name || (format.value === 'commander' ? 'Sin Comandante' : 'Mazo Desconocido'),
         life: startingLife.value,
         poison: 0,
         tax: 0,
@@ -109,33 +116,99 @@ const startGame = () => {
     gameStarted.value = true
     gameOver.value = false
     winner.value = null
-    runShuffleAnimation()
-}
 
-// (Lógica de turnos y daño se mantiene igual para agilidad del counter)
-const runShuffleAnimation = () => {
+    // Animación de sorteo al iniciar la partida
     isShuffling.value = true
     let count = 0
     const interval = setInterval(() => {
         currentPlayerIndex.value = Math.floor(Math.random() * numPlayers.value)
         count++
-        if (count > 15) { clearInterval(interval); isShuffling.value = false }
+        if (count > 15) {
+            clearInterval(interval)
+            isShuffling.value = false
+        }
     }, 100)
 }
 
-const updateLife = (index, amount) => {
-    players.value[index].life += amount
-    checkDeath(index)
+// --- LÓGICA DE TURNOS (HORARIO) ---
+const getClockwiseOrder = (num) => {
+    if (num === 4) return [0, 1, 3, 2] // Arriba-Izq -> Arriba-Der -> Abajo-Der -> Abajo-Izq
+    if (num === 3) return [0, 2, 1]    // Arriba(Span 2) -> Abajo-Der -> Abajo-Izq
+    return [0, 1]                      // 2 jugadores (Arriba -> Abajo)
 }
 
-const checkDeath = (index) => {
-    const p = players.value[index]
-    if (p.dead) return
+const nextTurn = () => {
+    if (isShuffling.value || gameOver.value) return
+
+    const order = getClockwiseOrder(numPlayers.value)
+    const currentPosition = order.indexOf(currentPlayerIndex.value)
+    let nextPosition = (currentPosition + 1) % order.length
+    let nextIndex = order[nextPosition]
+
+    // Saltar a los jugadores muertos siguiendo el ciclo horario
+    let attempts = 0
+    while (players.value[nextIndex].dead && attempts < order.length) {
+        nextPosition = (nextPosition + 1) % order.length
+        nextIndex = order[nextPosition]
+        attempts++
+    }
+    currentPlayerIndex.value = nextIndex
+}
+
+// --- LÓGICA DE INTERACCIÓN Y MECÁNICAS (VIDA, VENENO, DAÑO COMANDANTE) ---
+const handleTouchStart = (i, a) => {
+    isLongPress.value = false
+    pressTimer.value = setTimeout(() => {
+        isLongPress.value = true
+        updateLife(i, a * 10) // Suma/Resta 10 si se mantiene
+    }, 500)
+}
+
+const handleTouchEnd = (i, a) => {
+    clearTimeout(pressTimer.value)
+    if (!isLongPress.value) {
+        updateLife(i, a) // Suma/Resta 1 si es un toque rápido
+    }
+}
+
+const updateLife = (i, a) => {
+    players.value[i].life += a
+    checkDeath(i)
+}
+
+const updatePoison = (i, a) => {
+    const p = players.value[i]
+    p.poison = Math.max(0, Math.min(10, p.poison + a))
+    checkDeath(i)
+}
+
+const updateTax = (i, a) => {
+    const p = players.value[i]
+    p.tax = Math.max(0, p.tax + a)
+}
+
+const updateCommanderDamage = (i, oppId, a) => {
+    const p = players.value[i]
+    const cur = p.commanderDamage[oppId] || 0
+    p.commanderDamage[oppId] = Math.max(0, cur + a)
+    p.life -= a
+    checkDeath(i)
+}
+
+const setMonarch = (i) => {
+    players.value.forEach((p, x) => p.isMonarch = x === i)
+}
+
+// --- MUERTE, VICTORIA Y GUARDADO EN DB ---
+const checkDeath = (i) => {
+    const p = players.value[i]
+    if (p.dead) return // Prevenir re-ejecución si ya está muerto
+
     const cmdrLoss = Object.values(p.commanderDamage).some(d => d >= 21)
     if (p.life <= 0 || p.poison >= 10 || (format.value === 'commander' && cmdrLoss)) {
         p.dead = true
         const aliveCount = players.value.filter(pl => !pl.dead).length
-        p.puesto = aliveCount + 1
+        p.puesto = aliveCount + 1 // Si queda 1 vivo, el que acaba de morir es el 2º
         checkWinner()
     }
 }
@@ -146,16 +219,15 @@ const checkWinner = () => {
         winner.value = survivors[0]
         winner.value.puesto = 1
         gameOver.value = true
-        saveMatch() // Guardado automático al detectar ganador
+        saveMatch()
     }
 }
 
-// --- PERSISTENCIA REAL ---
 const saveMatch = async () => {
     if (loading.value) return
     loading.value = true
     try {
-        // 1. Crear la partida
+        // 1. Crear la partida en base de datos
         const { data: matchData, error: matchError } = await supabase
             .from('matches')
             .insert([{
@@ -167,12 +239,12 @@ const saveMatch = async () => {
 
         if (matchError) throw matchError
 
-        // 2. Preparar participantes con los datos finales del counter
-        const participantsToSave = players.value.map(p => ({
+        // 2. Preparar y subir participantes
+        const participantsToSave = players.value.map((p) => ({
             match_id: matchData.id,
             user_id: p.user_id,
-            player_name_manual: p.name,
-            deck_id: p.deck_id,
+            player_name_manual: p.user_id ? null : p.name,
+            deck_id: p.deck_id && p.deck_id !== 'manual' ? p.deck_id : null,
             deck_name_manual: p.deck_name,
             is_winner: p.puesto === 1,
             puesto: p.puesto || 1
@@ -199,10 +271,12 @@ const resetGame = () => {
 
 <template>
     <div class="life-counter-root">
+
         <div v-if="!gameStarted" class="setup-screen scrollable">
             <div class="setup-container">
                 <h1 class="setup-title">LILLIANA TRACKER</h1>
                 <div class="setup-box">
+
                     <p class="section-label">Formato y Vida</p>
                     <div class="selector-row">
                         <button @click="format = 'commander'; startingLife = 40"
@@ -211,7 +285,7 @@ const resetGame = () => {
                             :class="{ active: format === 'pauper' }">Pauper</button>
                     </div>
 
-                    <p class="section-label">Jugadores</p>
+                    <p class="section-label">Número de Jugadores</p>
                     <div class="selector-row">
                         <button v-for="n in [2, 3, 4]" :key="n" @click="numPlayers = n"
                             :class="{ active: numPlayers === n }">{{ n }}</button>
@@ -225,7 +299,8 @@ const resetGame = () => {
                             <div class="input-group">
                                 <div class="autocomplete-wrapper">
                                     <input type="text" v-model="setupPlayers[i - 1].name" @input="handleSearch(i - 1)"
-                                        placeholder="Buscar jugador..." :disabled="i === 1 && currentUser" />
+                                        placeholder="Buscar jugador (@username)..."
+                                        :disabled="i === 1 && currentUser" />
 
                                     <ul v-if="setupPlayers[i - 1].suggestions.length > 0" class="suggestions-list">
                                         <li v-for="sug in setupPlayers[i - 1].suggestions" :key="sug.id"
@@ -245,7 +320,7 @@ const resetGame = () => {
                                     <option value="manual">Otro mazo...</option>
                                 </select>
                                 <input v-else type="text" v-model="setupPlayers[i - 1].deck_name"
-                                    placeholder="Nombre del mazo..." />
+                                    :placeholder="format === 'commander' ? 'Nombre del Comandante...' : 'Arquetipo del Mazo...'" />
                             </div>
                         </div>
                     </div>
@@ -257,31 +332,98 @@ const resetGame = () => {
 
         <div v-else class="game-board" :class="`players-${numPlayers}`">
             <div v-for="(player, index) in players" :key="player.id" class="player-zone"
-                :style="{ '--player-color': !player.dead ? player.color : '#111' }"
-                :class="{ 'is-dead': player.dead, 'is-current-turn': currentPlayerIndex === index && !gameOver }">
+                :style="{ '--player-color': !player.dead ? player.color : '#111' }" :class="{
+            'is-dead': player.dead,
+            'has-monarch': player.isMonarch,
+            'is-current-turn': currentPlayerIndex === index && !isShuffling && !gameOver,
+            'is-shuffling': isShuffling && currentPlayerIndex === index
+        }">
 
                 <div class="inner-content-rotator">
+                    <div v-if="currentPlayerIndex === index && !gameOver" class="turn-indicator-label">
+                        {{ isShuffling ? '🎲' : 'TU TURNO' }}
+                    </div>
+
                     <div class="interaction-layer">
-                        <div class="hitbox minus" @click="updateLife(index, -1)"><span>−</span></div>
-                        <div class="hitbox plus" @click="updateLife(index, 1)"><span>+</span></div>
+                        <div class="hitbox minus" @mousedown="handleTouchStart(index, -1)"
+                            @mouseup="handleTouchEnd(index, -1)" @touchstart.passive="handleTouchStart(index, -1)"
+                            @touchend.passive="handleTouchEnd(index, -1)">
+                            <span>−</span>
+                        </div>
+                        <div class="hitbox plus" @mousedown="handleTouchStart(index, 1)"
+                            @mouseup="handleTouchEnd(index, 1)" @touchstart.passive="handleTouchStart(index, 1)"
+                            @touchend.passive="handleTouchEnd(index, 1)">
+                            <span>+</span>
+                        </div>
                     </div>
 
                     <div class="interface-layer">
+                        <div class="top-nav">
+                            <div class="status-pills">
+                                <button class="pill poison-pill" @click.stop="updatePoison(index, 1)"
+                                    @contextmenu.prevent="updatePoison(index, -1)">
+                                    🧪 {{ player.poison }}
+                                </button>
+                                <button class="pill tax-pill" @click.stop="updateTax(index, 2)"
+                                    @contextmenu.prevent="updateTax(index, -2)">
+                                    💎 {{ player.tax }}
+                                </button>
+                                <button v-if="format === 'commander'" class="pill cmd-pill"
+                                    @click.stop="activeCommanderPanel = player.id">⚔️</button>
+                            </div>
+                            <button class="pill monarch-pill" :class="{ active: player.isMonarch }"
+                                @click.stop="setMonarch(index)">
+                                👑 <span v-if="player.isMonarch">MONARCA</span>
+                            </button>
+                        </div>
+
                         <div class="life-center">
+                            <div class="public-commander-damage" v-if="format === 'commander'">
+                                <div v-for="opp in players.filter(p => p.id !== player.id)" :key="opp.id"
+                                    class="mini-damage-pill" v-show="(player.commanderDamage[opp.id] || 0) > 0"
+                                    :style="{ borderLeftColor: opp.color }">
+                                    {{ player.commanderDamage[opp.id] }}
+                                </div>
+                            </div>
+
                             <div class="p-info-group">
                                 <span class="p-tag">{{ player.name }}</span>
                                 <span class="p-extra">{{ player.deck_name }}</span>
                             </div>
+
                             <span v-if="!player.dead" class="p-life">{{ player.life }}</span>
-                            <span v-else class="p-death-msg">ELIMINADO</span>
+                            <div v-else class="p-death-msg">
+                                💀 <button
+                                    @click.stop="player.dead = false; player.life = 1; gameOver = false">REVIVIR</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="activeCommanderPanel === player.id && format === 'commander'" class="cmd-overlay">
+                        <div class="cmd-header">
+                            <span>Comandante & Tax</span>
+                            <button class="close-btn" @click.stop="activeCommanderPanel = null">✕</button>
+                        </div>
+                        <div class="cmd-list">
+                            <hr class="cmd-divider" />
+                            <div v-for="opp in players.filter(p => p.id !== player.id)" :key="opp.id" class="cmd-row">
+                                <div class="opp-indicator" :style="{ background: opp.color }"></div>
+                                <div class="cmd-actions">
+                                    <button @click.stop="updateCommanderDamage(index, opp.id, -1)">−</button>
+                                    <span class="cmd-value"
+                                        :class="{ danger: (player.commanderDamage[opp.id] || 0) >= 18 }">
+                                        {{ player.commanderDamage[opp.id] || 0 }}
+                                    </span>
+                                    <button @click.stop="updateCommanderDamage(index, opp.id, 1)">+</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="center-hub" v-if="!gameOver">
-                <button class="hub-btn pass-btn"
-                    @click="currentPlayerIndex = (currentPlayerIndex + 1) % numPlayers">⏭️</button>
+                <button class="hub-btn pass-btn" @click="nextTurn" v-show="!isShuffling">⏭️</button>
                 <button class="hub-btn menu-btn" @click="resetGame">⚙️</button>
             </div>
 
@@ -289,8 +431,9 @@ const resetGame = () => {
                 <div class="victory-box">
                     <h2>👑 ¡VICTORIA! 👑</h2>
                     <h1 :style="{ color: winner.color }">{{ winner.name }}</h1>
-                    <p class="db-msg" v-if="!loading">✓ Partida sincronizada</p>
-                    <p v-else>Guardando en la nube...</p>
+                    <p>{{ winner.deck_name }}</p>
+                    <p class="db-msg" v-if="!loading">✓ Partida sincronizada con la base de datos</p>
+                    <p class="db-msg" v-else>Guardando partida...</p>
                     <button class="start-btn" @click="gameStarted = false">VOLVER AL MENÚ</button>
                 </div>
             </div>
@@ -392,7 +535,8 @@ const resetGame = () => {
     gap: 4px;
 }
 
-.input-group input {
+.input-group input,
+.setup-select {
     width: 100%;
     background: #1e293b;
     border: 1px solid #334155;
@@ -402,7 +546,8 @@ const resetGame = () => {
     box-sizing: border-box;
 }
 
-.input-group input:focus {
+.input-group input:focus,
+.setup-select:focus {
     outline: none;
     border-color: #3b82f6;
 }
@@ -433,6 +578,7 @@ const resetGame = () => {
     text-align: left;
     cursor: pointer;
     font-size: 0.9rem;
+    border-bottom: 1px solid #334155;
 }
 
 .suggestions-list li:hover {
@@ -450,7 +596,7 @@ const resetGame = () => {
     font-weight: 900;
 }
 
-/* --- TABLERO Y PANTALLA DE VICTORIA --- */
+/* --- TABLERO Y JUEGO --- */
 .game-board {
     display: grid;
     width: 100%;
@@ -646,6 +792,7 @@ const resetGame = () => {
     text-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
 }
 
+/* --- OVERLAY DE COMANDANTE --- */
 .cmd-overlay {
     position: absolute;
     inset: 0;
@@ -737,6 +884,7 @@ const resetGame = () => {
     border-radius: 3px;
 }
 
+/* ---- ESTILOS PARA EL TURNO Y EL HUB CENTRAL ---- */
 .center-hub {
     position: absolute;
     top: 50%;
@@ -834,7 +982,7 @@ const resetGame = () => {
     display: block;
 }
 
-/* OVERLAY DE VICTORIA */
+/* --- OVERLAY DE VICTORIA --- */
 .victory-overlay {
     position: absolute;
     inset: 0;
@@ -877,83 +1025,5 @@ const resetGame = () => {
         transform: scale(1);
         opacity: 1;
     }
-}
-
-.user-input {
-    border-left: 3px solid #3b82f6 !important;
-    font-weight: bold;
-}
-
-.deck-input {
-    font-size: 0.8rem;
-    opacity: 0.8;
-}
-
-.suggestions {
-    position: absolute;
-    width: 100%;
-    background: #1e293b;
-    border: 1px solid #3b82f6;
-    z-index: 100;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    border-radius: 0 0 8px 8px;
-}
-
-.suggestions li {
-    padding: 10px;
-    cursor: pointer;
-    border-bottom: 1px solid #334155;
-}
-
-.suggestions li:hover {
-    background: #3b82f6;
-}
-
-.victory-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.9);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.autocomplete-wrapper {
-    position: relative;
-    width: 100%;
-}
-
-.suggestions-list {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: #222;
-    border: 1px solid #444;
-    z-index: 100;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    border-radius: 0 0 8px 8px;
-}
-
-.suggestions-list li {
-    padding: 10px;
-    border-bottom: 1px solid #333;
-    color: white;
-    cursor: pointer;
-}
-
-.setup-select {
-    width: 100%;
-    padding: 8px;
-    background: #111;
-    color: white;
-    border: 1px solid #444;
-    border-radius: 4px;
-    margin-top: 5px;
 }
 </style>
