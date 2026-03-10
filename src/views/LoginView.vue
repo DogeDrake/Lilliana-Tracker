@@ -9,15 +9,30 @@
 
             <form @submit.prevent="handleLogin" class="auth-form">
                 <div class="form-section">
+
+                    <transition name="slide-fade">
+                        <div v-if="errorMessage" class="error-banner">
+                            ⚠️ {{ errorMessage }}
+                        </div>
+                    </transition>
+
                     <label class="section-tag">CREDENCIALES</label>
+
                     <div class="input-wrapper">
                         <span class="input-icon">📧</span>
-                        <input v-model="email" type="email" placeholder="Email" required class="minimal-input" />
+                        <input v-model.trim="email" type="email" placeholder="Email" required autocomplete="email"
+                            class="minimal-input" :disabled="loading" />
                     </div>
 
                     <div class="input-wrapper">
                         <span class="input-icon">🔑</span>
-                        <input v-model="password" type="password" placeholder="Contraseña" required class="minimal-input" />
+                        <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="Contraseña"
+                            required autocomplete="current-password" class="minimal-input password-input"
+                            :disabled="loading" />
+                        <button type="button" class="toggle-password" @click="showPassword = !showPassword"
+                            tabindex="-1" title="Mostrar/Ocultar contraseña">
+                            {{ showPassword ? '🙈' : '👁️' }}
+                        </button>
                     </div>
                 </div>
 
@@ -46,18 +61,45 @@ const router = useRouter()
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
+const errorMessage = ref('')
+const showPassword = ref(false)
+
+// Diccionario seguro de errores para no filtrar información sensible de la DB
+const getFriendlyErrorMessage = (errorMsg) => {
+    const msg = errorMsg.toLowerCase()
+    if (msg.includes('invalid login credentials')) return 'Email o contraseña incorrectos.'
+    if (msg.includes('email not confirmed')) return 'Debes confirmar tu email antes de entrar.'
+    if (msg.includes('rate limit')) return 'Demasiados intentos fallidos. Espera unos minutos.'
+    if (msg.includes('network')) return 'Error de conexión. Comprueba tu internet.'
+    return 'Se produjo un error oscuro al iniciar sesión.'
+}
 
 const handleLogin = async () => {
+    // 1. Limpiar estado previo
+    errorMessage.value = ''
+
+    // 2. Validación de seguridad en cliente
+    if (!email.value || !password.value) {
+        errorMessage.value = 'Debes rellenar todos los campos.'
+        return
+    }
+
     loading.value = true
     try {
+        // 3. Petición segura a Supabase
         const { error } = await supabase.auth.signInWithPassword({
             email: email.value,
             password: password.value
         })
+
         if (error) throw error
+
+        // 4. Redirección en éxito
         router.push('/')
+
     } catch (error) {
-        alert('Error: ' + error.message)
+        console.error('Login Error:', error.message)
+        errorMessage.value = getFriendlyErrorMessage(error.message)
     } finally {
         loading.value = false
     }
@@ -77,7 +119,7 @@ const handleLogin = async () => {
 
 .auth-card {
     width: 100%;
-    max-width: 480px; /* Igual que registro */
+    max-width: 480px;
     padding: 40px;
     background: rgba(30, 41, 59, 0.4);
     border-radius: 24px;
@@ -101,11 +143,11 @@ const handleLogin = async () => {
     font-size: 2rem;
     font-weight: 800;
     margin: 0;
-    white-space: nowrap; /* Evita que se rompa el nombre */
+    white-space: nowrap;
 }
 
 .main-title span {
-    color: #3b82f6; /* Azul Lilliana */
+    color: #3b82f6;
     font-weight: 300;
 }
 
@@ -126,6 +168,31 @@ const handleLogin = async () => {
     flex-direction: column;
     gap: 12px;
     text-align: left;
+}
+
+/* BANNER DE ERRORES SECURE UX */
+.error-banner {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    padding: 12px 15px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+    transition: all 0.3s ease;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+    transform: translateY(-10px);
+    opacity: 0;
 }
 
 .section-tag {
@@ -161,10 +228,40 @@ const handleLogin = async () => {
     transition: all 0.3s ease;
 }
 
+.password-input {
+    padding-right: 45px;
+    /* Espacio para el botón de ver contraseña */
+}
+
 .minimal-input:focus {
     outline: none;
     border-color: #3b82f6;
     background: rgba(15, 23, 42, 0.9);
+}
+
+.minimal-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* BOTÓN DE VER CONTRASEÑA */
+.toggle-password {
+    position: absolute;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-password:hover {
+    opacity: 1;
 }
 
 /* BOTÓN ESTILO REGISTRO (Azul) */
@@ -173,7 +270,7 @@ const handleLogin = async () => {
     box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
 }
 
-.aura-blue:hover {
+.aura-blue:hover:not(:disabled) {
     background: #2563eb;
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
 }
@@ -188,6 +285,14 @@ const handleLogin = async () => {
     cursor: pointer;
     transition: 0.3s;
     margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.main-save-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .auth-footer {
@@ -217,9 +322,11 @@ const handleLogin = async () => {
         border: none;
         backdrop-filter: none;
     }
+
     .main-title {
-        font-size: 1.7rem; /* Reducimos un poco para que quepa en una línea */
+        font-size: 1.7rem;
     }
+
     .switch {
         display: flex;
         flex-direction: column;
@@ -232,8 +339,15 @@ const handleLogin = async () => {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .spinner-small {
@@ -243,8 +357,11 @@ const handleLogin = async () => {
     border-top-color: white;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
-    margin: 0 auto;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 </style>

@@ -156,19 +156,33 @@ const nextTurn = () => {
 }
 
 // --- LÓGICA DE INTERACCIÓN Y MECÁNICAS (VIDA, VENENO, DAÑO COMANDANTE) ---
-const handleTouchStart = (i, a) => {
+const handleTouchStart = (e, i, a) => {
+    // Si es un evento táctil, evitamos que luego se dispare el mousedown
+    if (e.type === 'touchstart') {
+        // No usamos preventDefault aquí porque declaramos el evento como passive 
+        // para mejorar el rendimiento del scroll, pero controlamos el timer.
+    }
+
+    // Si ya hay un timer corriendo (evita doble ejecución), lo limpiamos
+    if (pressTimer.value) clearTimeout(pressTimer.value);
+
     isLongPress.value = false
     pressTimer.value = setTimeout(() => {
         isLongPress.value = true
-        updateLife(i, a * 10) // Suma/Resta 10 si se mantiene
+        updateLife(i, a * 10)
     }, 500)
 }
 
-const handleTouchEnd = (i, a) => {
+const handleTouchEnd = (e, i, a) => {
     clearTimeout(pressTimer.value)
+    pressTimer.value = null; // Limpiamos la referencia
+
     if (!isLongPress.value) {
-        updateLife(i, a) // Suma/Resta 1 si es un toque rápido
+        updateLife(i, a)
     }
+
+    // Prevenir que el click del ratón se dispare tras un touch
+    if (e.cancelable) e.preventDefault();
 }
 
 const updateLife = (i, a) => {
