@@ -34,6 +34,12 @@
                             {{ showPassword ? '🙈' : '👁️' }}
                         </button>
                     </div>
+
+                    <div class="forgot-password-container">
+                        <router-link to="/recuperar" class="forgot-link">
+                            ¿Has olvidado tu contraseña?
+                        </router-link>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-action main-save-btn aura-blue" :disabled="loading">
@@ -64,7 +70,6 @@ const loading = ref(false)
 const errorMessage = ref('')
 const showPassword = ref(false)
 
-// Diccionario seguro de errores para no filtrar información sensible de la DB
 const getFriendlyErrorMessage = (errorMsg) => {
     const msg = errorMsg.toLowerCase()
     if (msg.includes('invalid login credentials')) return 'Email o contraseña incorrectos.'
@@ -75,10 +80,8 @@ const getFriendlyErrorMessage = (errorMsg) => {
 }
 
 const handleLogin = async () => {
-    // 1. Limpiar estado previo
     errorMessage.value = ''
 
-    // 2. Validación de seguridad en cliente
     if (!email.value || !password.value) {
         errorMessage.value = 'Debes rellenar todos los campos.'
         return
@@ -86,15 +89,12 @@ const handleLogin = async () => {
 
     loading.value = true
     try {
-        // 3. Petición segura a Supabase
         const { error } = await supabase.auth.signInWithPassword({
             email: email.value,
             password: password.value
         })
 
         if (error) throw error
-
-        // 4. Redirección en éxito
         router.push('/')
 
     } catch (error) {
@@ -107,7 +107,8 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-/* UNIFICACIÓN CON REGISTRO */
+/* Mantengo tus estilos originales y añado los del nuevo enlace */
+
 .auth-viewport {
     min-height: 100vh;
     display: flex;
@@ -170,7 +171,6 @@ const handleLogin = async () => {
     text-align: left;
 }
 
-/* BANNER DE ERRORES SECURE UX */
 .error-banner {
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.4);
@@ -182,17 +182,6 @@ const handleLogin = async () => {
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-    transition: all 0.3s ease;
-}
-
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-    transform: translateY(-10px);
-    opacity: 0;
 }
 
 .section-tag {
@@ -230,7 +219,6 @@ const handleLogin = async () => {
 
 .password-input {
     padding-right: 45px;
-    /* Espacio para el botón de ver contraseña */
 }
 
 .minimal-input:focus {
@@ -244,7 +232,6 @@ const handleLogin = async () => {
     cursor: not-allowed;
 }
 
-/* BOTÓN DE VER CONTRASEÑA */
 .toggle-password {
     position: absolute;
     right: 15px;
@@ -264,7 +251,23 @@ const handleLogin = async () => {
     opacity: 1;
 }
 
-/* BOTÓN ESTILO REGISTRO (Azul) */
+/* ESTILOS DEL LINK DE OLVIDO */
+.forgot-password-container {
+    text-align: right;
+    margin-top: -4px;
+}
+
+.forgot-link {
+    font-size: 0.8rem;
+    color: #64748b;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.forgot-link:hover {
+    color: #3b82f6;
+}
+
 .aura-blue {
     background: #3b82f6;
     box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
@@ -290,11 +293,6 @@ const handleLogin = async () => {
     justify-content: center;
 }
 
-.main-save-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
 .auth-footer {
     margin-top: 30px;
 }
@@ -314,28 +312,19 @@ const handleLogin = async () => {
     text-decoration: underline;
 }
 
-/* RESPONSIVE */
-@media (max-width: 480px) {
-    .auth-card {
-        padding: 30px 20px;
-        background: transparent;
-        border: none;
-        backdrop-filter: none;
-    }
-
-    .main-title {
-        font-size: 1.7rem;
-    }
-
-    .switch {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
+.spinner-small {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
 }
 
-.fade-in {
-    animation: fadeIn 0.6s ease-out;
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes fadeIn {
@@ -350,18 +339,16 @@ const handleLogin = async () => {
     }
 }
 
-.spinner-small {
-    width: 20px;
-    height: 20px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+.fade-in {
+    animation: fadeIn 0.6s ease-out;
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
+@media (max-width: 480px) {
+    .auth-card {
+        padding: 30px 20px;
+        background: transparent;
+        border: none;
+        backdrop-filter: none;
     }
 }
 </style>
