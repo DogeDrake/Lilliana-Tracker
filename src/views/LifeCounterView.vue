@@ -1,9 +1,45 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../supabaseClient'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+
+// --- WAKE LOCK (Mantener pantalla encendida) ---
+const wakeLock = ref(null);
+
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock.value = await navigator.wakeLock.request('screen');
+            console.log('Pantalla siempre encendida activada');
+        }
+    } catch (err) {
+        console.error(`Error al activar Wake Lock: ${err.message}`);
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLock.value !== null) {
+        wakeLock.value.release();
+        wakeLock.value = null;
+    }
+}
+
+const handleVisibilityChange = async () => {
+    if (wakeLock.value !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+})
+
+onUnmounted(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    releaseWakeLock();
+});
 
 // --- ESTADO GLOBAL ---
 const gameStarted = ref(false)
@@ -43,7 +79,6 @@ onMounted(async () => {
             currentUser.value = profile
             setupPlayers.value[0].name = profile.username
             setupPlayers.value[0].user_id = profile.id
-            // Cargar mazos del usuario principal
             loadPlayerDecks(0, profile.id)
         }
     }
@@ -85,40 +120,31 @@ async function loadPlayerDecks(index, userId) {
 
 function onDeckSelect(index) {
     const p = setupPlayers.value[index]
-    const selected = p.decks.find(d => d.id === p.deck_id)
-    if (selected) {
-        p.deck_name = selected.comandante_nombre || selected.nombre_personalizado || selected.arquetipo_pauper
-    } else if (p.deck_id !== 'manual') {
-        p.deck_name = ''
+    if (p.deck_id === 'manual' || !p.deck_id) {
+        p.deck_name = '' // Permitir que escriba su propio mazo
+    } else {
+        const selected = p.decks.find(d => d.id === p.deck_id)
+        if (selected) {
+            p.deck_name = selected.comandante_nombre || selected.nombre_personalizado || selected.arquetipo_pauper
+        }
     }
 }
 
 // --- CAMBIO DE FORMATO ---
 function changeFormat(newFormat) {
     format.value = newFormat
-
-    // Ajustar vida inicial según el formato
     startingLife.value = (newFormat === 'commander') ? 40 : 20
 
-    // Limpiar datos de oponentes (índices 1, 2 y 3)
     setupPlayers.value.forEach((p, idx) => {
-        // El jugador principal (idx 0) mantiene su nombre y user_id
         if (idx !== 0) {
             p.name = ''
             p.user_id = null
             p.suggestions = []
         }
-
-        // Todos los jugadores pierden el mazo seleccionado (ya que los mazos dependen del formato)
         p.deck_id = null
         p.deck_name = ''
         p.decks = []
-
-        // Si el jugador actual tiene un ID (es un perfil de Supabase), 
-        // recargar sus mazos para el nuevo formato
-        if (p.user_id) {
-            loadPlayerDecks(idx, p.user_id)
-        }
+        if (p.user_id) loadPlayerDecks(idx, p.user_id)
     })
 }
 
@@ -126,6 +152,9 @@ function changeFormat(newFormat) {
 const getPlayerColor = (i) => ['#b91c1c', '#1d4ed8', '#047857', '#b45309'][i]
 
 const startGame = () => {
+    gameStarted.value = true;
+    requestWakeLock();
+
     players.value = setupPlayers.value.slice(0, numPlayers.value).map((p, i) => ({
         id: i + 1,
         user_id: p.user_id,
@@ -133,6 +162,9 @@ const startGame = () => {
         name: p.name || `Jugador ${i + 1}`,
         deck_name: p.deck_name || (format.value === 'commander' ? 'Sin Comandante' : 'Mazo Desconocido'),
         life: startingLife.value,
+        lifeDelta: 0, // Para el feedback visual de daño/cura
+        deltaKey: 0, // Para resetear la animación
+        deltaTimer: null,
         poison: 0,
         tax: 0,
         isMonarch: false,
@@ -142,28 +174,39 @@ const startGame = () => {
         puesto: null
     }))
 
-    gameStarted.value = true
     gameOver.value = false
     winner.value = null
+    runShuffleAnimation()
+}
 
-    // Animación de sorteo al iniciar la partida
+// --- MEJORA: RULETA DE SORTEO INICIAL ---
+const runShuffleAnimation = () => {
     isShuffling.value = true
-    let count = 0
-    const interval = setInterval(() => {
-        currentPlayerIndex.value = Math.floor(Math.random() * numPlayers.value)
-        count++
-        if (count > 15) {
-            clearInterval(interval)
+    let step = 0
+    // Número aleatorio de saltos entre 20 y 40
+    const totalSteps = 20 + Math.floor(Math.random() * (numPlayers.value * 4))
+    let currentDelay = 40 // Velocidad inicial rápida
+
+    const nextStep = () => {
+        currentPlayerIndex.value = (currentPlayerIndex.value + 1) % numPlayers.value
+        step++
+
+        if (step < totalSteps) {
+            // Desaceleración progresiva tipo ruleta
+            currentDelay += Math.floor(step / 3)
+            setTimeout(nextStep, currentDelay)
+        } else {
             isShuffling.value = false
         }
-    }, 100)
+    }
+    setTimeout(nextStep, currentDelay)
 }
 
 // --- LÓGICA DE TURNOS (HORARIO) ---
 const getClockwiseOrder = (num) => {
-    if (num === 4) return [0, 1, 3, 2] // Arriba-Izq -> Arriba-Der -> Abajo-Der -> Abajo-Izq
-    if (num === 3) return [0, 2, 1]    // Arriba(Span 2) -> Abajo-Der -> Abajo-Izq
-    return [0, 1]                      // 2 jugadores (Arriba -> Abajo)
+    if (num === 4) return [0, 1, 3, 2]
+    if (num === 3) return [0, 2, 1]
+    return [0, 1]
 }
 
 const nextTurn = () => {
@@ -174,7 +217,6 @@ const nextTurn = () => {
     let nextPosition = (currentPosition + 1) % order.length
     let nextIndex = order[nextPosition]
 
-    // Saltar a los jugadores muertos siguiendo el ciclo horario
     let attempts = 0
     while (players.value[nextIndex].dead && attempts < order.length) {
         nextPosition = (nextPosition + 1) % order.length
@@ -184,38 +226,43 @@ const nextTurn = () => {
     currentPlayerIndex.value = nextIndex
 }
 
-// --- LÓGICA DE INTERACCIÓN Y MECÁNICAS (VIDA, VENENO, DAÑO COMANDANTE) ---
+// --- LÓGICA DE INTERACCIÓN Y MECÁNICAS ---
 const handleTouchStart = (e, i, a) => {
-    // Si es un evento táctil, evitamos que luego se dispare el mousedown
-    if (e.type === 'touchstart') {
-        // No usamos preventDefault aquí porque declaramos el evento como passive 
-        // para mejorar el rendimiento del scroll, pero controlamos el timer.
-    }
-
-    // Si ya hay un timer corriendo (evita doble ejecución), lo limpiamos
     if (pressTimer.value) clearTimeout(pressTimer.value);
 
     isLongPress.value = false
     pressTimer.value = setTimeout(() => {
         isLongPress.value = true
+        // Mejora QoL: Vibración háptica en dispositivos móviles al hacer pulsación larga
+        if (navigator.vibrate) navigator.vibrate(40);
         updateLife(i, a * 10)
-    }, 500)
+    }, 450) // Reducido ligeramente para sentirse más ágil
 }
 
 const handleTouchEnd = (e, i, a) => {
     clearTimeout(pressTimer.value)
-    pressTimer.value = null; // Limpiamos la referencia
+    pressTimer.value = null;
 
     if (!isLongPress.value) {
         updateLife(i, a)
     }
-
-    // Prevenir que el click del ratón se dispare tras un touch
     if (e.cancelable) e.preventDefault();
 }
 
+// Lógica mejorada con Feedback de Daño
 const updateLife = (i, a) => {
-    players.value[i].life += a
+    const p = players.value[i]
+    p.life += a
+
+    // Feedback visual (Delta)
+    p.lifeDelta += a
+    p.deltaKey = Date.now() // Fuerza la re-animación CSS
+    if (p.deltaTimer) clearTimeout(p.deltaTimer)
+
+    p.deltaTimer = setTimeout(() => {
+        p.lifeDelta = 0
+    }, 1200) // El texto desaparecerá después de 1.2s
+
     checkDeath(i)
 }
 
@@ -234,8 +281,7 @@ const updateCommanderDamage = (i, oppId, a) => {
     const p = players.value[i]
     const cur = p.commanderDamage[oppId] || 0
     p.commanderDamage[oppId] = Math.max(0, cur + a)
-    p.life -= a
-    checkDeath(i)
+    updateLife(i, -a) // Altera la vida y dispara el feedback de -1
 }
 
 const setMonarch = (i) => {
@@ -245,13 +291,13 @@ const setMonarch = (i) => {
 // --- MUERTE, VICTORIA Y GUARDADO EN DB ---
 const checkDeath = (i) => {
     const p = players.value[i]
-    if (p.dead) return // Prevenir re-ejecución si ya está muerto
+    if (p.dead) return
 
     const cmdrLoss = Object.values(p.commanderDamage).some(d => d >= 21)
     if (p.life <= 0 || p.poison >= 10 || (format.value === 'commander' && cmdrLoss)) {
         p.dead = true
         const aliveCount = players.value.filter(pl => !pl.dead).length
-        p.puesto = aliveCount + 1 // Si queda 1 vivo, el que acaba de morir es el 2º
+        p.puesto = aliveCount + 1
         checkWinner()
     }
 }
@@ -270,7 +316,6 @@ const saveMatch = async () => {
     if (loading.value) return
     loading.value = true
     try {
-        // 1. Crear la partida en base de datos
         const { data: matchData, error: matchError } = await supabase
             .from('matches')
             .insert([{
@@ -282,7 +327,6 @@ const saveMatch = async () => {
 
         if (matchError) throw matchError
 
-        // 2. Preparar y subir participantes
         const participantsToSave = players.value.map((p) => ({
             match_id: matchData.id,
             user_id: p.user_id,
@@ -308,9 +352,9 @@ const resetGame = () => {
     if (confirm("¿Finalizar partida actual y volver al menú?")) {
         gameStarted.value = false
         gameOver.value = false
+        releaseWakeLock();
     }
 }
-
 
 const goBack = () => {
     router.back()
@@ -319,6 +363,7 @@ const goBack = () => {
 
 <template>
     <div class="life-counter-root">
+
         <button v-if="!gameStarted" class="back-nav-btn" @click="goBack">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -326,6 +371,7 @@ const goBack = () => {
             </svg>
             Volver
         </button>
+
         <div v-if="!gameStarted" class="setup-screen scrollable">
             <div class="setup-container">
                 <h1 class="setup-title">LILLIANA TRACKER</h1>
@@ -373,7 +419,10 @@ const goBack = () => {
                                     </option>
                                     <option value="manual">Otro mazo...</option>
                                 </select>
-                                <input v-else type="text" v-model="setupPlayers[i - 1].deck_name"
+
+                                <input
+                                    v-if="setupPlayers[i - 1].decks.length === 0 || setupPlayers[i - 1].deck_id === 'manual'"
+                                    type="text" v-model="setupPlayers[i - 1].deck_name"
                                     :placeholder="format === 'commander' ? 'Nombre del Comandante...' : 'Arquetipo del Mazo...'" />
                             </div>
                         </div>
@@ -402,16 +451,12 @@ const goBack = () => {
                         <div class="hitbox minus" @mousedown="handleTouchStart($event, index, -1)"
                             @mouseup="handleTouchEnd($event, index, -1)"
                             @touchstart.passive="handleTouchStart($event, index, -1)"
-                            @touchend="handleTouchEnd($event, index, -1)">
-                            <span>−</span>
-                        </div>
+                            @touchend="handleTouchEnd($event, index, -1)" @contextmenu.prevent> </div>
 
                         <div class="hitbox plus" @mousedown="handleTouchStart($event, index, 1)"
                             @mouseup="handleTouchEnd($event, index, 1)"
                             @touchstart.passive="handleTouchStart($event, index, 1)"
-                            @touchend="handleTouchEnd($event, index, 1)">
-                            <span>+</span>
-                        </div>
+                            @touchend="handleTouchEnd($event, index, 1)" @contextmenu.prevent> </div>
                     </div>
 
                     <div class="interface-layer">
@@ -435,6 +480,12 @@ const goBack = () => {
                         </div>
 
                         <div class="life-center">
+
+                            <div v-if="player.lifeDelta !== 0" :key="player.deltaKey" class="life-delta-indicator"
+                                :class="player.lifeDelta > 0 ? 'delta-positive' : 'delta-negative'">
+                                {{ player.lifeDelta > 0 ? '+' : '' }}{{ player.lifeDelta }}
+                            </div>
+
                             <div class="public-commander-damage" v-if="format === 'commander'">
                                 <div v-for="opp in players.filter(p => p.id !== player.id)" :key="opp.id"
                                     class="mini-damage-pill" v-show="(player.commanderDamage[opp.id] || 0) > 0"
@@ -450,7 +501,8 @@ const goBack = () => {
 
                             <span v-if="!player.dead" class="p-life">{{ player.life }}</span>
                             <div v-else class="p-death-msg">
-                                💀 <button
+                                💀
+                                <button @mousedown.stop @touchstart.stop
                                     @click.stop="player.dead = false; player.life = 1; gameOver = false">REVIVIR</button>
                             </div>
                         </div>
@@ -491,7 +543,7 @@ const goBack = () => {
                     <p>{{ winner.deck_name }}</p>
                     <p class="db-msg" v-if="!loading">✓ Partida sincronizada con la base de datos</p>
                     <p class="db-msg" v-else>Guardando partida...</p>
-                    <button class="start-btn" @click="gameStarted = false">VOLVER AL MENÚ</button>
+                    <button class="start-btn" @click="resetGame">VOLVER AL MENÚ</button>
                 </div>
             </div>
         </div>
@@ -508,6 +560,20 @@ const goBack = () => {
     position: fixed;
     inset: 0;
     font-family: system-ui, -apple-system, sans-serif;
+    -webkit-user-select: none;
+    /* Safari */
+    -ms-user-select: none;
+    /* IE 10 y 11 */
+    user-select: none;
+    /* Estándar (Chrome, Firefox, etc.) */
+    -webkit-touch-callout: none;
+    /* Desactiva el menú contextual en iOS (copiar/pegar) */
+}
+
+.setup-screen input,
+.setup-screen select {
+    -webkit-user-select: text;
+    user-select: text;
 }
 
 /* --- ESTILOS DEL SETUP --- */
@@ -522,6 +588,10 @@ const goBack = () => {
 .setup-screen.scrollable {
     overflow-y: auto;
     padding: 20px 0;
+}
+
+.setup-title {
+    margin-top: 30px;
 }
 
 .setup-box {
@@ -778,6 +848,42 @@ const goBack = () => {
     position: relative;
 }
 
+/* FEEDBACK DE DAÑO VISUAL (DELTA) */
+.life-delta-indicator {
+    position: absolute;
+    top: 5%;
+    /* Arriba de la vida */
+    font-size: 4rem;
+    font-weight: 900;
+    opacity: 0;
+    pointer-events: none;
+    animation: float-fade 2s ease-out forwards;
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+    z-index: 20;
+}
+
+.delta-positive {
+    color: #4ade80;
+    /* Verde brillante */
+}
+
+.delta-negative {
+    color: #f87171;
+    /* Rojo brillante */
+}
+
+@keyframes float-fade {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-60px) scale(1.3);
+        opacity: 0;
+    }
+}
+
 .p-info-group {
     display: flex;
     flex-direction: column;
@@ -841,7 +947,7 @@ const goBack = () => {
 }
 
 .is-dead {
-    filter: grayscale(1) brightness(0.2);
+    filter: grayscale(1) brightness(0.8);
 }
 
 .danger {
@@ -849,12 +955,35 @@ const goBack = () => {
     text-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
 }
 
+.p-death-msg {
+    position: relative;
+    z-index: 50;
+    /* Aumentado para que no se oculte tras el hitbox */
+    pointer-events: auto;
+    /* IMPORTANTE: Hace que sea pulsable */
+    text-align: center;
+}
+
+.p-death-msg button {
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-weight: 900;
+    cursor: pointer;
+    display: block;
+    pointer-events: auto;
+    /* Asegura de nuevo el click */
+}
+
 /* --- OVERLAY DE COMANDANTE --- */
 .cmd-overlay {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.96);
-    z-index: 50;
+    z-index: 100;
     display: flex;
     flex-direction: column;
     padding: 6px;
@@ -953,7 +1082,7 @@ const goBack = () => {
     padding: 6px;
     border-radius: 30px;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    z-index: 100;
+    z-index: 150;
     backdrop-filter: blur(10px);
 }
 
@@ -1027,16 +1156,74 @@ const goBack = () => {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
-.p-death-msg button {
-    margin-top: 10px;
-    padding: 8px 16px;
-    background: #fff;
-    color: #000;
-    border: none;
-    border-radius: 8px;
-    font-weight: 900;
+/* --- OVERLAY DE VICTORIA --- */
+.victory-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+.victory-box {
+    background: #1e293b;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    border: 2px solid #3b82f6;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.victory-box h1 {
+    font-size: 3rem;
+    margin: 10px 0;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.db-msg {
+    color: #4ade80;
+    font-size: 0.8rem;
+    margin-bottom: 20px;
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Estilo para el botón de volver */
+.back-nav-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 8px 16px 8px 8px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
     cursor: pointer;
-    display: block;
+    backdrop-filter: blur(10px);
+}
+
+.back-nav-btn:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 /* --- OVERLAY DE VICTORIA --- */

@@ -47,7 +47,6 @@ const stats = reactive({
     totalMatches: 0,
     winRate: 0
 })
-
 // --- FUNCIONES AUXILIARES ---
 
 const closeAllModals = () => {
@@ -357,42 +356,36 @@ const toggleColor = (c) => {
 }
 
 const openStats = async (deck) => {
-    const possibleNames = [deck.nombre_personalizado?.toLowerCase(), deck.comandante_nombre?.toLowerCase(), deck.arquetipo_pauper?.toLowerCase()].filter(Boolean);
-    const deckMatches = history.value.filter(h => h.deck_name_manual && possibleNames.includes(h.deck_name_manual.toLowerCase()));
-
-    if (deckMatches.length === 0) {
-        selectedDeckStats.value = { ...deck, empty: true };
-        showDeckStats.value = true;
-        return;
-    }
-
-    const wins = deckMatches.filter(m => m.is_winner).length;
-    const matchIds = deckMatches.map(m => m.match_id);
-    const { data: opponents } = await supabase.from('match_participants').select('player_name_manual, is_winner, match_id').in('match_id', matchIds).neq('player_name_manual', profile.value.username);
-
-    const nemesisMap = {}, victimMap = {};
-    deckMatches.forEach(dm => {
-        opponents?.filter(o => o.match_id === dm.match_id).forEach(opp => {
-            const name = opp.player_name_manual || 'Otro';
-            if (dm.is_winner) victimMap[name] = (victimMap[name] || 0) + 1;
-            else if (opp.is_winner) nemesisMap[name] = (nemesisMap[name] || 0) + 1;
-        });
-    });
-
-    const getTop = (obj) => {
-        const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
-        return entries.length > 0 ? { name: entries[0][0], count: entries[0][1] } : null;
-    };
-
-    selectedDeckStats.value = {
-        ...deck,
-        totalMatches: deckMatches.length,
-        winRate: ((wins / deckMatches.length) * 100).toFixed(1),
-        nemesis: getTop(nemesisMap),
-        victim: getTop(victimMap)
-    };
+    selectedDeckStats.value = { ...deck, victorias: 0, derrotas: 0, cargando: true };
     showDeckStats.value = true;
-}
+
+    try {
+        // Consultamos las participaciones de este mazo
+        const { data, error } = await supabase
+            .from('match_participants')
+            .select('is_winner')
+            .eq('deck_id', deck.id);
+
+        if (error) throw error;
+
+        if (data) {
+            const wins = data.filter(p => p.is_winner === true).length;
+            const losses = data.filter(p => p.is_winner === false).length;
+
+            selectedDeckStats.value.victorias = wins;
+            selectedDeckStats.value.derrotas = losses;
+        }
+    } catch (err) {
+        console.error("Error cargando estadísticas:", err.message);
+    } finally {
+        selectedDeckStats.value.cargando = false;
+    }
+};
+
+const calculateWinRate = (wins, losses) => {
+    const total = wins + losses;
+    return total === 0 ? '0.0' : ((wins / total) * 100).toFixed(1);
+};
 
 const createDeck = async () => {
     if (!newDeck.nombre_personalizado) return
@@ -601,38 +594,52 @@ const handleLogout = async () => { await supabase.auth.signOut(); router.push('/
                 <button @click="updateAvatar" class="btn-submit-magic" :disabled="isSubmitting">GUARDAR CAMBIOS</button>
             </div>
 
-            <div v-if="showDeckStats && selectedDeckStats"
-                class="modal-content glass-modal stats-modal-large fade-in-up">
-                <div class="modal-header">
-                    <div class="header-titles">
-                        <span class="deck-format-tag">{{ selectedDeckStats.formato }}</span>
-                        <h3>{{ selectedDeckStats.nombre_personalizado }}</h3>
-                    </div>
-                    <button @click="showDeckStats = false" class="close-btn-styled">✕</button>
-                </div>
-                <div v-if="selectedDeckStats.empty" class="p-4 text-center">No hay partidas registradas.</div>
-                <div v-else class="stats-grid-container">
-                    <div class="main-metrics">
-                        <div class="metric-card">
-                            <span class="m-val">{{ selectedDeckStats.winRate }}%</span>
-                            <span class="m-lab">Win Rate</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="m-val">{{ selectedDeckStats.totalMatches }}</span>
-                            <span class="m-lab">Partidas</span>
+            <div v-if="showDeckStats && selectedDeckStats" class="modal-overlay" @click.self="showDeckStats = false">
+                <div class="modal-content stats-modal-large fade-in-up">
+                    <div class="stats-header"
+                        :style="{ backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.2), #0f172a), url(${selectedDeckStats.image_url || 'https://c1.scryfall.com/file/scryfall-cards/art_crop/front/5/e/5e10014a-58f0-4660-aee8-223406323497.jpg'})` }">
+                        <button class="close-btn" @click="showDeckStats = false">×</button>
+                        <div class="stats-title-group">
+                            <h2>{{ selectedDeckStats.nombre_personalizado }}</h2>
+                            <p>{{ selectedDeckStats.comandante_nombre }}</p>
                         </div>
                     </div>
-                    <div class="rival-tracking" v-if="selectedDeckStats.nemesis || selectedDeckStats.victim">
-                        <div v-if="selectedDeckStats.nemesis" class="rival-row nemesis">
-                            <span class="r-tag">NÉMESIS</span>
-                            <span class="r-name">{{ selectedDeckStats.nemesis.name }}</span>
-                            <span class="r-count">{{ selectedDeckStats.nemesis.count }} derrotas</span>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-icon">🏆</span>
+                            <span class="stat-value">{{ selectedDeckStats.victorias || 0 }}</span>
+                            <span class="stat-label">Victorias</span>
                         </div>
-                        <div v-if="selectedDeckStats.victim" class="rival-row victim">
-                            <span class="r-tag">VÍCTIMA</span>
-                            <span class="r-name">{{ selectedDeckStats.victim.name }}</span>
-                            <span class="r-count">{{ selectedDeckStats.victim.count }} victorias</span>
+                        <div class="stat-card">
+                            <span class="stat-icon">💀</span>
+                            <span class="stat-value">{{ selectedDeckStats.derrotas || 0 }}</span>
+                            <span class="stat-label">Derrotas</span>
                         </div>
+                        <div class="stat-card highlight">
+                            <span class="stat-icon">📊</span>
+                            <span class="stat-value">
+                                {{ calculateWinRate(selectedDeckStats.victorias, selectedDeckStats.derrotas) }}%
+                            </span>
+                            <span class="stat-label">Win Rate</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon">⚔️</span>
+                            <span class="stat-value">{{ (selectedDeckStats.victorias || 0) + (selectedDeckStats.derrotas
+        || 0) }}</span>
+                            <span class="stat-label">Total Partidas</span>
+                        </div>
+                    </div>
+
+                    <div class="deck-actions-footer">
+                        <button v-if="selectedDeckStats.decklist_url"
+                            @click="copyToClipboard(selectedDeckStats.decklist_url)" class="btn-secondary-outline">
+                            🔗 Copiar Enlace
+                        </button>
+                        <a :href="selectedDeckStats.decklist_url" target="_blank" class="btn-primary"
+                            v-if="selectedDeckStats.decklist_url">
+                            Ver en Decklist
+                        </a>
                     </div>
                 </div>
             </div>
@@ -1192,11 +1199,6 @@ html {
     scroll-behavior: smooth;
 }
 
-/* STATS MODAL LARGE */
-.stats-modal-large {
-    max-width: 600px !important;
-}
-
 .main-metrics {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1252,5 +1254,246 @@ html {
     background: #3b82f6;
     color: white;
     border-color: #3b82f6;
+}
+
+/* --- CORRECCIÓN CARRUSEL --- */
+.decks-scroll {
+    display: flex;
+    overflow-x: auto;
+    gap: 20px;
+    padding: 10px 5px 25px 5px;
+    scroll-behavior: smooth;
+    /* Añadimos "magnetismo" para que no deslice descontrolado */
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    /* Ocultar scrollbar en Firefox */
+}
+
+.decks-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+/* Ocultar en Chrome/Safari */
+
+/* Las cartas dentro del carrusel deben tener snap */
+.decks-scroll>* {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+}
+
+/* --- ESTILOS MODAL ESTADÍSTICAS --- */
+.stats-modal-large {
+    padding: 0;
+    /* Quitamos el padding para que el header llegue a los bordes */
+    overflow: hidden;
+    background: #0f172a;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.stats-header {
+    height: 150px;
+    background-size: cover;
+    background-position: center;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    position: relative;
+}
+
+.stats-title-group h2 {
+    margin: 0;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stats-title-group p {
+    margin: 5px 0 0 0;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    padding: 20px;
+}
+
+.stat-card {
+    background: rgba(30, 41, 59, 0.5);
+    padding: 15px;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stat-card.highlight {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.2));
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 5px;
+}
+
+.stat-icon {
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+
+.deck-info-footer {
+    padding: 0 20px 20px 20px;
+}
+
+/* --- CORRECCIÓN CARRUSEL --- */
+.decks-scroll {
+    display: flex;
+    overflow-x: auto;
+    gap: 16px;
+    padding: 10px 5px 20px 5px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    /* Esto hace que el carrusel se frene en cada carta */
+    scroll-snap-type: x mandatory;
+}
+
+/* Aplicar el snap a las tarjetas */
+.decks-scroll>* {
+    scroll-snap-align: center;
+    flex: 0 0 auto;
+}
+
+/* --- ESTILOS MODAL ESTADÍSTICAS --- */
+.stats-modal-large {
+    background: #0f172a !important;
+    padding: 0 !important;
+    max-width: 450px !important;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.stats-header {
+    height: 180px;
+    background-size: cover;
+    background-position: center;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 20px;
+    background: #0f172a;
+}
+
+.stat-card {
+    background: rgba(30, 41, 59, 0.7);
+    padding: 15px;
+    border-radius: 16px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stat-card.highlight {
+    background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(30, 41, 59, 0.7));
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.deck-actions-footer {
+    padding: 15px 20px 25px;
+    display: flex;
+    gap: 10px;
+    background: #0f172a;
+}
+
+.btn-secondary-outline {
+    background: transparent;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    padding: 10px 15px;
+    border-radius: 10px;
+    flex: 1;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.btn-primary {
+    flex: 1.5;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 10px;
+    text-decoration: none;
+    text-align: center;
+    font-weight: bold;
+}
+
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 32px;
+    height: 32px;
+    background: rgba(15, 23, 42, 0.6);
+    /* Fondo oscuro semitransparente */
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    color: white;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    line-height: 1;
+    padding-bottom: 2px;
+    /* Ajuste visual para centrar la '×' */
+}
+
+.close-btn:hover {
+    background: #ef4444;
+    /* Rojo al pasar el ratón */
+    border-color: #f87171;
+    transform: rotate(90deg);
+    /* Efecto de giro */
+}
+
+.close-btn:active {
+    transform: scale(0.9) rotate(90deg);
 }
 </style>

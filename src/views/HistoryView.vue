@@ -101,6 +101,7 @@ onMounted(async () => {
     flex-direction: column;
     gap: 16px;
     padding-bottom: 40px;
+    margin: 25px;
 }
 
 /* Contenedor del Link */

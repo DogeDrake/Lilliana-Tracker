@@ -144,6 +144,25 @@ body {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   flex: 1;
+  /* AÑADIR ESTO AQUÍ */
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.action-fab {
+  /* ... tus estilos anteriores ... */
+  /* AÑADIR ESTO AQUÍ TAMBIÉN */
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+/* Efecto de calidad de vida: feedback táctil suave */
+.nav-item:active {
+  opacity: 0.7;
+}
+
+.action-fab:active {
+  transform: translateX(-50%) scale(0.95);
 }
 
 .icon {
