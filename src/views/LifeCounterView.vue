@@ -238,22 +238,52 @@ const checkWinner = () => {
 }
 
 const saveMatch = async () => {
-    if (loading.value) return
+    // 1. Validación de seguridad para creator_id (NOT NULL en DB)
+    if (loading.value || !currentUser.value?.id) {
+        console.error("No se puede guardar: Falta el creador de la partida");
+        return;
+    }
+    
     loading.value = true
     try {
-        const { data: matchData } = await supabase.from('matches').insert([{ creator_id: currentUser.value?.id, formato: format.value, is_public: true }]).select().single()
-        const parts = players.value.map((p) => ({
-            match_id: matchData.id, user_id: p.user_id, player_name_manual: p.user_id ? null : p.name,
-            deck_id: p.deck_id && p.deck_id !== 'manual' ? p.deck_id : null, deck_name_manual: p.deck_name,
-            is_winner: p.puesto === 1, puesto: p.puesto || 1
-        }))
-        await supabase.from('match_participants').insert(parts)
-    } catch (error) { console.error(error) } finally { loading.value = false }
-}
+        // 2. Insertar la partida (match)
+        const { data: matchData, error: matchError } = await supabase
+            .from('matches')
+            .insert([{ 
+                creator_id: currentUser.value.id, 
+                formato: format.value, 
+                is_public: true 
+            }])
+            .select()
+            .single()
 
-const resetGame = () => {
-    if (confirm("¿Finalizar la partida actual?")) {
-        gameStarted.value = false; gameOver.value = false; releaseWakeLock();
+        if (matchError) throw matchError
+
+        // 3. Preparar participantes con limpieza de tipos
+        const parts = players.value.map((p) => {
+            // Aseguramos que deck_id sea un UUID válido o null, nunca un string vacío o 'manual'
+            const validDeckId = (p.deck_id && p.deck_id !== 'manual') ? p.deck_id : null;
+
+            return {
+                match_id: matchData.id,
+                user_id: p.user_id || null, 
+                player_name_manual: p.user_id ? null : p.name,
+                deck_id: validDeckId,
+                deck_name_manual: p.deck_name || null,
+                is_winner: p.puesto === 1,
+                puesto: p.puesto || 1 // El ganador siempre será 1
+            }
+        })
+
+        const { error: partsError } = await supabase.from('match_participants').insert(parts)
+        if (partsError) throw partsError
+
+        console.log("Partida guardada exitosamente");
+
+    } catch (error) {
+        console.error("Error detallado:", error.message || error)
+    } finally {
+        loading.value = false
     }
 }
 </script>
