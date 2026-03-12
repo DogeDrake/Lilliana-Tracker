@@ -114,20 +114,54 @@ function changeFormat(newFormat) {
 
 const getPlayerColor = (i) => ['#b91c1c', '#1d4ed8', '#047857', '#b45309'][i]
 
-const startGame = () => {
-    gameStarted.value = true;
-    requestWakeLock();
+const startGame = async () => {
+
+    if (!currentUser.value) {
+        const { data: { session } } = await supabase.auth.getSession()
+
+        if (session) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('username,id')
+                .eq('id', session.user.id)
+                .single()
+
+            currentUser.value = profile
+        }
+    }
+
+    if (!currentUser.value) {
+        alert("No se pudo detectar el usuario.")
+        return
+    }
+
+    gameStarted.value = true
+    requestWakeLock()
 
     players.value = setupPlayers.value.slice(0, numPlayers.value).map((p, i) => ({
-        id: i + 1, user_id: p.user_id, deck_id: p.deck_id,
-        name: p.name || `Jugador ${i + 1}`,
+        id: i + 1,
+        user_id: p.user_id,
+        deck_id: p.deck_id === 'manual' ? null : p.deck_id,
+        name: p.name.trim() !== '' ? p.name : `Jugador ${i + 1}`,
         deck_name: p.deck_name || (format.value === 'commander' ? 'Sin Comandante' : 'Mazo Desconocido'),
-        life: startingLife.value, lifeDelta: 0, deltaKey: 0, deltaTimer: null,
-        poison: 0, tax: 0, isMonarch: false, commanderDamage: {},
-        color: getPlayerColor(i), dead: false, puesto: null,
-        animLight: false, animHeavy: false
+        life: startingLife.value,
+        lifeDelta: 0,
+        deltaKey: 0,
+        deltaTimer: null,
+        poison: 0,
+        tax: 0,
+        isMonarch: false,
+        commanderDamage: {},
+        color: getPlayerColor(i),
+        dead: false,
+        puesto: null,
+        animLight: false,
+        animHeavy: false
     }))
-    gameOver.value = false; winner.value = null;
+
+    gameOver.value = false
+    winner.value = null
+
     runShuffleAnimation()
 }
 
@@ -238,40 +272,37 @@ const checkWinner = () => {
 }
 
 const saveMatch = async () => {
-    // 1. Validación de seguridad para creator_id (NOT NULL en DB)
     if (loading.value || !currentUser.value?.id) {
         console.error("No se puede guardar: Falta el creador de la partida");
         return;
     }
-    
+
     loading.value = true
     try {
-        // 2. Insertar la partida (match)
         const { data: matchData, error: matchError } = await supabase
             .from('matches')
-            .insert([{ 
-                creator_id: currentUser.value.id, 
-                formato: format.value, 
-                is_public: true 
+            .insert([{
+                creator_id: currentUser.value.id,
+                formato: format.value,
+                is_public: true
             }])
             .select()
             .single()
 
         if (matchError) throw matchError
 
-        // 3. Preparar participantes con limpieza de tipos
         const parts = players.value.map((p) => {
-            // Aseguramos que deck_id sea un UUID válido o null, nunca un string vacío o 'manual'
             const validDeckId = (p.deck_id && p.deck_id !== 'manual') ? p.deck_id : null;
 
             return {
                 match_id: matchData.id,
-                user_id: p.user_id || null, 
-                player_name_manual: p.user_id ? null : p.name,
+                user_id: p.user_id || null,
+                // SOLUCIÓN: Enviamos el nombre siempre para que quede registro histórico
+                player_name_manual: p.name,
                 deck_id: validDeckId,
                 deck_name_manual: p.deck_name || null,
                 is_winner: p.puesto === 1,
-                puesto: p.puesto || 1 // El ganador siempre será 1
+                puesto: p.puesto || 1
             }
         })
 
@@ -286,6 +317,15 @@ const saveMatch = async () => {
         loading.value = false
     }
 }
+
+const resetGame = () => {
+    if (confirm("¿Finalizar partida actual y volver al menú?")) {
+        gameStarted.value = false
+        gameOver.value = false
+    }
+}
+
+
 </script>
 
 <template>
@@ -507,7 +547,7 @@ const saveMatch = async () => {
                     <h2>👑 ¡VICTORIA! 👑</h2>
                     <h1 :style="{ color: winner.color }">{{ winner.name }}</h1>
                     <p class="db-msg" v-if="!loading">✓ Partida guardada</p>
-                    <button class="start-btn" @click="resetGame">VOLVER AL MENÚ</button>
+                    <button class="start-btn" @click="gameStarted = false">VOLVER AL MENÚ</button>
                 </div>
             </div>
         </div>
