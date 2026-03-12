@@ -367,7 +367,6 @@ const goBack = () => {
 
         <div v-if="!gameStarted" class="setup-screen scrollable">
             <div class="setup-container">
-                <h1 class="setup-title">LILLIANA TRACKER</h1>
                 <div class="setup-box">
 
                     <p class="section-label">Formato y Vida</p>
@@ -529,7 +528,7 @@ const goBack = () => {
                                 <button class="monarch-action-bar" :class="{ 'is-active': player.isMonarch }"
                                     @click.stop="setMonarch(index)">
                                     <span class="crown-icon">👑</span>
-                                    {{ player.isMonarch ? 'REINO ACTIVO' : 'RECLAMAR TRONO' }}
+                                    {{ player.isMonarch ? 'MONARCA' : 'RECLAMAR TRONO' }}
                                 </button>
 
                                 <div v-if="format === 'commander'" class="commander-damage-grid">
@@ -623,7 +622,7 @@ const goBack = () => {
 
 .setup-box {
     background: rgba(255, 255, 255, 0.05);
-    padding: 24px;
+    padding: 20px;
     border-radius: 24px;
     width: 320px;
     text-align: center;
@@ -631,7 +630,7 @@ const goBack = () => {
 }
 
 .section-label {
-    margin: 16px 0 8px 0;
+    margin: 10px 0 8px 0;
     font-size: 0.8rem;
     font-weight: bold;
     color: #94a3b8;
